@@ -5,16 +5,23 @@
 #ifndef __FIREFOXDRIVER_H__
 #define __FIREFOXDRIVER_H__
 
+#ifdef _WIN32
+#define  _WIN32_WINNT  0x0601
+#define  ASIO_DISABLE_IOCP 1
+#endif
+#define  ASIO_STANDALONE 1
+#include "asio.hpp"
+
 #include <string>
 #include <vector>
 
 #include "ProcessLauncher.h"
 
+
+
 using namespace std;
 
 class Tab{
-
-   
 
     string m_TabURL;
     string m_title;
@@ -22,10 +29,13 @@ class Tab{
 
     public:
 
+
     string GetURL();
     string GetTitle();
     string GetActor();
 };
+
+
 
 
 class FireFoxDriver : public FirefoxProcess {
@@ -34,8 +44,8 @@ class FireFoxDriver : public FirefoxProcess {
     FireFoxDriver(const FireFoxDriver& ) = delete;
     FireFoxDriver( FireFoxDriver&& ) = delete;
     
-    
-    
+	asio::io_service	m_ioservice;
+	asio::ip::tcp::socket m_endpoint;
     public:
     
     /*

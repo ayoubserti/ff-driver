@@ -2,7 +2,7 @@
 #include "rapidjson/rapidjson.h"
 #include <iostream>
 
-constexpr int kMax_received = 1024; //1k
+constexpr int kMax_received = 10000; //10k
 
 
 class JSONPacket {
@@ -36,7 +36,7 @@ std::vector<Tab> FireFoxDriver::GetTabList()
 {
 	std::vector<Tab> tabs;
 	std::error_code error;
-	JSONPacket jsonPacket("{ 'to':'browser', 'type':'listTabs' }");
+	JSONPacket jsonPacket("{ \"to\":\"root\", \"type\":\"listTabs\" }");
 	string packetized = jsonPacket.Stringify();
 	m_endpoint.write_some(asio::buffer(packetized,packetized.size()),error);
 

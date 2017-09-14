@@ -42,6 +42,38 @@ class Tab{
 };
 
 
+class JSONPacket {
+	string m_msg;
+public:
+	JSONPacket(const string& msg) : m_msg(msg) {}
+	string Stringify() {
+		string result;
+		result += std::to_string(m_msg.size());
+		result += ":";
+		result += m_msg;
+		return result;
+	}
+
+	static JSONPacket Parse(const string& jsonmsg) {
+
+		JSONPacket packet("");
+		size_t offset = jsonmsg.find(":");
+		if (offset>0)
+		{
+			packet.m_msg = jsonmsg.substr(offset + 1);
+
+		}
+
+		return packet;
+
+	}
+
+	string GetMsg()
+	{
+		return m_msg;
+	}
+
+};
 
 
 class FireFoxDriver : public FirefoxProcess {
@@ -52,6 +84,9 @@ class FireFoxDriver : public FirefoxProcess {
     
 	asio::io_service	m_ioservice;
 	asio::ip::tcp::socket m_endpoint;
+
+	JSONPacket  _SendRequest(const string& msg);
+
     public:
     
     /*

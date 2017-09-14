@@ -85,6 +85,7 @@ std::vector<Tab> FireFoxDriver::GetTabList()
 		}
 		buf[read] = '\0';
 		
+		cout << buf << endl;
 		rapidjson::Document document;
 		if (document.Parse(JSONPacket::Parse(buf).GetMsg()).HasParseError())
 		{
@@ -101,6 +102,7 @@ std::vector<Tab> FireFoxDriver::GetTabList()
 				tab.m_title = tabObj["title"].GetString();
 				tab.m_tabActor = tabObj["actor"].GetString();
 				tab.m_TabURL = tabObj["url"].GetString();
+				tab.m_consoleActor = tabObj["consoleActor"].GetString();
 				tabs.push_back(tab);
 			}
 
@@ -136,11 +138,49 @@ void FireFoxDriver::NavigateTo(const Tab & inTab, std::string inUrl)
 
 	JSONPacket json(buffer.GetString());
 	m_endpoint.write_some(asio::buffer(json.Stringify()));
+
+	//read reply to free endpoint buffer 
+	char buf[kMax_received];
 	
+	std::error_code error;
+	size_t len = m_endpoint.read_some(asio::buffer(buf), error);
+	
+
 }
 
 void FireFoxDriver::CloseTab(const Tab & inTab)
 {
+	//as there is no Request msg to close a Tab; we evaluate 'window.close()'in the Tab
+	//this hack works only with tab open using a script
+	rapidjson::Document msg(rapidjson::kObjectType);
+
+	msg.SetObject();
+	msg.AddMember("to", inTab.GetConsoleActor(), msg.GetAllocator());
+
+	msg.AddMember("type", "evaluateJS", msg.GetAllocator());
+
+	msg.AddMember("text", "window.close()", msg.GetAllocator());
+	
+
+	//serialiaze msg
+	rapidjson::StringBuffer buffer;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+	msg.Accept(writer);
+
+	JSONPacket json(buffer.GetString());
+	m_endpoint.write_some(asio::buffer(json.Stringify()));
+
+	//read reply to free endpoint buffer 
+	char buf[kMax_received];
+
+	std::error_code error;
+	size_t len = m_endpoint.read_some(asio::buffer(buf), error);
+
+	if (!error)
+	{
+
+	}
+
 }
 
 string Tab::GetURL() const
@@ -156,4 +196,9 @@ string Tab::GetTitle() const
 string Tab::GetActor() const
 {
 	return m_tabActor;
+}
+
+string Tab::GetConsoleActor() const
+{
+	return m_consoleActor;
 }

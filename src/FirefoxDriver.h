@@ -29,7 +29,7 @@ class Tab{
     string m_TabURL;
     string m_title;
     string m_tabActor;
-
+	string m_consoleActor;
 	friend class FireFoxDriver;
 
     public:
@@ -38,6 +38,7 @@ class Tab{
     string GetURL() const;
     string GetTitle() const;
     string GetActor() const;
+	string GetConsoleActor() const;
 };
 
 

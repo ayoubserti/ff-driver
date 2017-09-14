@@ -10,14 +10,11 @@
 class FirefoxProcess
 {
     PROCESS_INFORMATION  m_processInfo;
-
+	void Close();
     public: 
     FirefoxProcess();
 	virtual ~FirefoxProcess();
     
-	void Close();
-    
-
 };
 
 #endif //__PROCESS_LAUNCHR_H__

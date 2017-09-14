@@ -35,9 +35,9 @@ class Tab{
     public:
 
 
-    string GetURL();
-    string GetTitle();
-    string GetActor();
+    string GetURL() const;
+    string GetTitle() const;
+    string GetActor() const;
 };
 
 

@@ -3,6 +3,8 @@
 #undef GetObject
 #include "rapidjson/document.h"
 #include "rapidjson/rapidjson.h"
+#include "rapidjson/stringbuffer.h"
+#include "rapidjson/writer.h"
 
 #include <iostream>
 
@@ -112,28 +114,46 @@ std::vector<Tab> FireFoxDriver::GetTabList()
 
 Tab FireFoxDriver::OpenNewTab()
 {
+	//delayed;
 	return Tab();
 }
 
 void FireFoxDriver::NavigateTo(const Tab & inTab, std::string inUrl)
 {
+	
+	rapidjson::Document msg(rapidjson::kObjectType);
+
+	msg.SetObject();
+	msg.AddMember("to", inTab.GetActor(), msg.GetAllocator());
+
+	msg.AddMember("type", "navigateTo", msg.GetAllocator());
+	msg.AddMember("url", inUrl, msg.GetAllocator());
+	
+	//serialiaze msg
+	rapidjson::StringBuffer buffer;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+	msg.Accept(writer);
+
+	JSONPacket json(buffer.GetString());
+	m_endpoint.write_some(asio::buffer(json.Stringify()));
+	
 }
 
 void FireFoxDriver::CloseTab(const Tab & inTab)
 {
 }
 
-string Tab::GetURL()
+string Tab::GetURL() const
 {
 	return m_TabURL;
 }
 
-string Tab::GetTitle()
+string Tab::GetTitle() const
 {
 	return m_title;
 }
 
-string Tab::GetActor()
+string Tab::GetActor() const
 {
 	return m_tabActor;
 }

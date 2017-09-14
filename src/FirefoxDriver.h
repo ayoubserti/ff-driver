@@ -21,11 +21,16 @@
 
 using namespace std;
 
+//forward declation
+
+class FireFoxDriver;
 class Tab{
 
     string m_TabURL;
     string m_title;
     string m_tabActor;
+
+	friend class FireFoxDriver;
 
     public:
 

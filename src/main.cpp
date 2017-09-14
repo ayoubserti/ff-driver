@@ -3,6 +3,6 @@
 int main(int argc, char** argv)
 {
     FireFoxDriver ffDriver;
-	ffDriver.GetTabList();
+	auto tabList = ffDriver.GetTabList();
     return 0;
 }

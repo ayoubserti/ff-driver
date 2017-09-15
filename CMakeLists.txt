@@ -10,5 +10,5 @@ add_executable("ff-driver-cmd" ${SOURCE_FILES})
 
 
 
-target_include_directories("ff-driver-cmd" PRIVATE "deps/asio/asio/include" "deps/rapidjson/include" )
+target_include_directories("ff-driver-cmd" PRIVATE "deps/asio/asio/include" "deps/rapidjson/include" "deps/args" )
 

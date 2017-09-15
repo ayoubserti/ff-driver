@@ -8,6 +8,6 @@ int main(int argc, char** argv)
 	
 	ffDriver.OpenNewTab();
 	tabList = ffDriver.GetTabList();
-	ffDriver.CloseTab(tabList[1]);
+	//ffDriver.CloseTab(tabList[1]);
     return 0;
 }

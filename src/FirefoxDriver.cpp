@@ -1,6 +1,8 @@
 #define RAPIDJSON_HAS_STDSTRING 1
 #include "FirefoxDriver.h"
+#if _WIN32
 #undef GetObject
+#endif
 #include "rapidjson/document.h"
 #include "rapidjson/rapidjson.h"
 #include "rapidjson/stringbuffer.h"
@@ -8,14 +10,12 @@
 
 #include <iostream>
 
-
-constexpr int kMax_received = 10000; //10k
-constexpr size_t  kMax_len_len = 20; // max  length variable width
-
-
+constexpr size_t  kMax_len_len = 20; // max  packet 'length' representation
 
 using namespace asio::ip;
 
+
+vector<string> FireFoxDriver::s_unsolicitedEvents = {"tabListChanged"};
 
 JSONPacket FireFoxDriver::_ReadOneJSONPacket()
 {
@@ -34,13 +34,20 @@ JSONPacket FireFoxDriver::_ReadOneJSONPacket()
 		string tmp = buf;
 		
 		size_t offset = tmp.find(':');
-		size_t packetlen = std::stol(tmp.substr(0, offset + 1));
-		std::vector<char> reply(packetlen);
-		m_endpoint.read_some(asio::buffer(reply));
+		size_t packetlen = std::stol(tmp.substr(0, offset + 1)), trailling = packetlen - len +offset +1;
+
+		std::vector<char> reply(trailling);
+		
+		asio::read(m_endpoint, asio::buffer(reply), asio::transfer_exactly(trailling));
 		tmp.append(reply.begin(), reply.end());
-
-		return JSONPacket::Parse(tmp);
-
+		p = JSONPacket::Parse(tmp);
+		rapidjson::Document doc;
+		if (!doc.Parse(p.GetMsg()).HasParseError())
+		{
+			if (doc.HasMember("type") &&  std::find(s_unsolicitedEvents.begin(), s_unsolicitedEvents.end(),doc["type"].GetString()) != s_unsolicitedEvents.end())
+				return _ReadOneJSONPacket();
+		}
+		
 	}
 	return p;
 }
@@ -106,18 +113,22 @@ std::vector<Tab> FireFoxDriver::GetTabList()
 			else
 			{
 				auto obj = document.GetObject();
-				const auto& tabsArray = obj["tabs"].GetArray();
-				for (auto& it : tabsArray)
+				//check actor
+				string actor = obj["from"].GetString();
+				if (actor == "root" && obj.HasMember("tabs"))
 				{
-					auto tabObj = it.GetObject();
-					Tab tab;
-					tab.m_title = tabObj["title"].GetString();
-					tab.m_tabActor = tabObj["actor"].GetString();
-					tab.m_TabURL = tabObj["url"].GetString();
-					tab.m_consoleActor = tabObj["consoleActor"].GetString();
-					tabs.push_back(tab);
+					const auto& tabsArray = obj["tabs"].GetArray();
+					for (auto& it : tabsArray)
+					{
+						auto tabObj = it.GetObject();
+						Tab tab;
+						tab.m_title = tabObj["title"].GetString();
+						tab.m_tabActor = tabObj["actor"].GetString();
+						tab.m_TabURL = tabObj["url"].GetString();
+						tab.m_consoleActor = tabObj["consoleActor"].GetString();
+						tabs.push_back(tab);
+					}
 				}
-
 			}
 
 		}
@@ -148,7 +159,7 @@ Tab FireFoxDriver::OpenNewTab()
 		doc.Accept(writer);
 		
 		JSONPacket reply = _SendRequest(buffer.GetString());
-		_ReadOneJSONPacket(); // read notification packet
+		
 	
 		tab.m_TabURL = "";
 
@@ -176,12 +187,7 @@ void FireFoxDriver::NavigateTo(const Tab & inTab, std::string inUrl)
 	JSONPacket json(buffer.GetString());
 	m_endpoint.write_some(asio::buffer(json.Stringify()));
 
-	//read reply to free endpoint buffer 
-	char buf[kMax_received];
-	
-	std::error_code error;
-	size_t len = m_endpoint.read_some(asio::buffer(buf), error);
-	
+	_ReadOneJSONPacket();
 
 }
 
@@ -207,16 +213,7 @@ void FireFoxDriver::CloseTab(const Tab & inTab)
 	JSONPacket json(buffer.GetString());
 	m_endpoint.write_some(asio::buffer(json.Stringify()));
 
-	//read reply to free endpoint buffer 
-	char buf[kMax_received];
-
-	std::error_code error;
-	size_t len = m_endpoint.read_some(asio::buffer(buf), error);
-
-	if (!error)
-	{
-
-	}
+	_ReadOneJSONPacket();
 
 }
 

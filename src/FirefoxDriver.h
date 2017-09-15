@@ -95,6 +95,8 @@ class FireFoxDriver : public FirefoxProcess {
 
 	JSONPacket  _SendRequest(const string& msg);
 
+	static vector<string>  s_unsolicitedEvents;
+
     public:
     
     /*

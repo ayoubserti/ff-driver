@@ -60,7 +60,8 @@ public:
 		size_t offset = jsonmsg.find(":");
 		if (offset>0)
 		{
-			packet.m_msg = jsonmsg.substr(offset + 1);
+			size_t packetlen = std::stol(jsonmsg.substr(0, offset + 1));
+			packet.m_msg = jsonmsg.substr(offset + 1,packetlen); //be sure we get only one single packet form msg
 
 		}
 
@@ -69,6 +70,11 @@ public:
 	}
 
 	string GetMsg()
+	{
+		return m_msg;
+	}
+
+	const string& GetMsg() const
 	{
 		return m_msg;
 	}
@@ -84,6 +90,8 @@ class FireFoxDriver : public FirefoxProcess {
     
 	asio::io_service	m_ioservice;
 	asio::ip::tcp::socket m_endpoint;
+
+	JSONPacket  _ReadOneJSONPacket();
 
 	JSONPacket  _SendRequest(const string& msg);
 
@@ -105,7 +113,7 @@ class FireFoxDriver : public FirefoxProcess {
     /*
         @function OpenNewTab
         @info    open new tab in the current firefox instance
-        @warning    not implemented
+        @warning   
     */
 
     Tab     OpenNewTab();

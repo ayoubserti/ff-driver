@@ -10,11 +10,40 @@
 
 
 constexpr int kMax_received = 10000; //10k
+constexpr size_t  kMax_len_len = 20; // max  length variable width
 
 
 
 using namespace asio::ip;
 
+
+JSONPacket FireFoxDriver::_ReadOneJSONPacket()
+{
+	JSONPacket p("");
+	string value;
+	char buf[kMax_len_len] = { 0 };
+	std::error_code error;
+	size_t len = m_endpoint.read_some(asio::buffer(buf,kMax_len_len-1), error);
+	if (error)
+	{
+		//throw exception 
+	}
+	else
+	{
+		buf[len] = '\0';
+		string tmp = buf;
+		
+		size_t offset = tmp.find(':');
+		size_t packetlen = std::stol(tmp.substr(0, offset + 1));
+		std::vector<char> reply(packetlen);
+		m_endpoint.read_some(asio::buffer(reply));
+		tmp.append(reply.begin(), reply.end());
+
+		return JSONPacket::Parse(tmp);
+
+	}
+	return p;
+}
 
 JSONPacket FireFoxDriver::_SendRequest(const string & msg)
 {
@@ -29,13 +58,7 @@ JSONPacket FireFoxDriver::_SendRequest(const string & msg)
 	m_endpoint.write_some(asio::buffer(requestStr), error);
 	if (!error)
 	{
-		char buf[kMax_received];
-		size_t len = m_endpoint.read_some(asio::buffer(buf), error);
-		if (!error)
-		{
-			buf[len] = '\0';
-			reply = JSONPacket::Parse(buf);
-		}
+		reply = _ReadOneJSONPacket();
 	}
 
 	return reply;
@@ -49,13 +72,9 @@ FireFoxDriver::FireFoxDriver() :
 	m_endpoint.connect(tcp::endpoint(address::from_string("127.0.0.1"), 6000));
 
 	//when connected; server send some usefull information about  connection
-	//TODO parse and store it
-
-
-	char buf[kMax_received];
-	std::error_code error;
-	std::size_t read = m_endpoint.read_some(asio::buffer(buf, kMax_received), error);
-	buf[read] = '\0';
+	
+	JSONPacket p = _ReadOneJSONPacket();
+	
 
 }
 
@@ -71,18 +90,16 @@ std::vector<Tab> FireFoxDriver::GetTabList()
 		std::cout << "send failed: " << error.message() << std::endl;
 	}
 	else {
-		char buf[kMax_received];
-		std::size_t read = m_endpoint.read_some(asio::buffer(buf), error);
+		JSONPacket reply = _ReadOneJSONPacket();
 		if (error)
 		{
 			std::cerr << "send failed: " << error.message() << std::endl;
 		}
 		else
 		{
-			buf[read] = '\0';
-
+			
 			rapidjson::Document document;
-			if (document.Parse(JSONPacket::Parse(buf).GetMsg()).HasParseError())
+			if (document.Parse(reply.GetMsg()).HasParseError())
 			{
 				std::cerr << "Error while Parsing recieved JSON:  " << document.GetParseError() << std::endl;
 			}
@@ -131,7 +148,8 @@ Tab FireFoxDriver::OpenNewTab()
 		doc.Accept(writer);
 		
 		JSONPacket reply = _SendRequest(buffer.GetString());
-		
+		_ReadOneJSONPacket(); // read notification packet
+	
 		tab.m_TabURL = "";
 
 		

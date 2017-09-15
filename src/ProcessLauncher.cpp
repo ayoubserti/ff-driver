@@ -86,7 +86,7 @@ FirefoxProcess::FirefoxProcess()
 	BOOL bCreated = CreateProcess(exePath.c_str()," -start-debugger-server 6000", NULL, NULL, TRUE, NORMAL_PRIORITY_CLASS, NULL, NULL, &startupInfo, &m_processInfo);
 	if (bCreated) {
 		//successfully created; wait to start
-		WaitForSingleObject(m_processInfo.hProcess, 3000); //wait 3seconds
+		WaitForSingleObject(m_processInfo.hProcess, 10000); //wait 10seconds
 	}
 	else {
 		//Todo throw exception

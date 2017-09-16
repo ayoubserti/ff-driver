@@ -115,16 +115,17 @@ class FireFoxDriver : public FirefoxProcess {
     /*
         @function OpenNewTab
         @info    open new tab in the current firefox instance
+		@params  url to navigate to
         @warning   
     */
 
-    Tab     OpenNewTab();
+    Tab     OpenNewTab(const string& url );
 
 
     /*
         @function NavigateTo
     */
-    void    NavigateTo(const Tab& inTab, std::string inUrl);
+    void    NavigateTo(const Tab& inTab, const std::string& inUrl);
     
 
     /*

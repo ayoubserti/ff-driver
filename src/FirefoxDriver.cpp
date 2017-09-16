@@ -139,7 +139,7 @@ std::vector<Tab> FireFoxDriver::GetTabList()
 	return tabs;
 }
 
-Tab FireFoxDriver::OpenNewTab()
+Tab FireFoxDriver::OpenNewTab(const string& url)
 {
 	Tab tab;
 	auto tabs = GetTabList();
@@ -151,7 +151,10 @@ Tab FireFoxDriver::OpenNewTab()
 		doc.SetObject();
 		doc.AddMember("to", tabs[0].GetConsoleActor(), doc.GetAllocator());
 		doc.AddMember("type", "evaluateJS", doc.GetAllocator());
-		doc.AddMember("text", "window.open(\"about:blank\")",doc.GetAllocator());
+		string scriptText = "window.open('";
+		scriptText += url;
+		scriptText += "')";
+		doc.AddMember("text", scriptText,doc.GetAllocator());
 
 		//serialiaze msg
 		rapidjson::StringBuffer buffer;
@@ -168,7 +171,7 @@ Tab FireFoxDriver::OpenNewTab()
 	return tab;
 }
 
-void FireFoxDriver::NavigateTo(const Tab & inTab, std::string inUrl)
+void FireFoxDriver::NavigateTo(const Tab & inTab, const std::string& inUrl)
 {
 	
 	rapidjson::Document msg(rapidjson::kObjectType);
@@ -216,6 +219,7 @@ void FireFoxDriver::CloseTab(const Tab & inTab)
 	_ReadOneJSONPacket();
 
 }
+
 
 string Tab::GetURL() const
 {

@@ -83,7 +83,9 @@ FirefoxProcess::FirefoxProcess()
 
 	ZeroMemory(&startupInfo, sizeof(startupInfo));
 	startupInfo.cb = sizeof startupInfo; 
-	BOOL bCreated = CreateProcess(exePath.c_str()," -start-debugger-server 6000", NULL, NULL, TRUE, NORMAL_PRIORITY_CLASS, NULL, NULL, &startupInfo, &m_processInfo);
+	std::string cmd = exePath;
+	cmd += " -start-debugger-server 6000";
+	BOOL bCreated = CreateProcess(NULL,(LPSTR)cmd.c_str(), NULL, NULL, TRUE, NORMAL_PRIORITY_CLASS, NULL, NULL, &startupInfo, &m_processInfo);
 	if (bCreated) {
 		//successfully created; wait to start
 		WaitForSingleObject(m_processInfo.hProcess, 10000); //wait 10seconds

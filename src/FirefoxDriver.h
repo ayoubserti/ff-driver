@@ -132,6 +132,12 @@ class FireFoxDriver : public FirefoxProcess {
         @function   CloseTab
     */
     void CloseTab(const Tab& inTab);
+
+    /*
+     @function      ReloadTab
+    */
+
+    void ReloadTab(const Tab& inTab);
     
 };
 

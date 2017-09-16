@@ -26,3 +26,34 @@ ff-driver-cmd.exe {OPTIONS}
       --url=[url]                       Url
 
 ```
+
+## Build
+
+ff-driver depends on 2 external libraries 
+- `asio` for socket and networking stuff
+- `rapidjson` to deal with JSON structure; parsing, serialization and attribute look up
+
+`CMake` is used as project generator
+
+Retrieve source and dependenices:
+
+```
+$ git clone http://gitlab.siriomedia.com/app-factory/ff-driver.git
+$ cd ff-driver
+$ git submodule update --init
+
+```
+
+Generate VS project
+
+```
+$ mkdir build
+$ cd build 
+$ cmake ../
+
+```
+The project will be generated in `build` folder.
+
+Now Open VS solution and build
+
+

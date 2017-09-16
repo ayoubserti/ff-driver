@@ -12,6 +12,12 @@ int main(int argc, char** argv)
 	args::Flag listTab(flagGroup, "listTabs", "List all opened tab within Firefox", { 'l',"listTabs" });
 	args::ValueFlag<string> newTab(flagGroup, "newTab", "Open new tab within Firefox", { 'n',"new" });
 	args::ValueFlag<int> closeTab(flagGroup, "closeTab", "Close Tab id", { 'c',"close" });
+	args::Flag	navigateTab(flagGroup, "nabivateTo", "Navigate tab to a an URL", { "navigateTo" });
+	args::ValueFlag<int> tabId(flagGroup, "ID", "tab ID", { "id" });
+	args::ValueFlag<string> navigateUrl(flagGroup, "url", "Url", { "url" });
+	
+	
+
 
 
 	try
@@ -60,6 +66,28 @@ int main(int argc, char** argv)
 		auto allTabs = ffDriver.GetTabList();
 		if (allTabs.size() >= tabToCloseId && tabToCloseId >0) {
 			ffDriver.CloseTab(allTabs[tabToCloseId - 1]);
+		}
+	}
+	if (navigateTab)
+	{
+		if (tabId && navigateUrl)
+		{
+			auto allTabs = ffDriver.GetTabList();
+			int tabIDvalue = args::get(tabId);
+			if (allTabs.size() >= tabIDvalue && tabIDvalue >0) {
+				
+				string url = args::get(navigateUrl);
+				ffDriver.NavigateTo(allTabs[tabIDvalue - 1], url);
+			}
+
+		}
+		else if (!tabId)
+		{
+			cerr << "tab id forgotten" << endl;
+		}
+		else if (!navigateUrl)
+		{
+			cerr << "url forgotten" << endl;
 		}
 	}
 	

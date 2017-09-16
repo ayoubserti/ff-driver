@@ -9,16 +9,20 @@ ff-driver is a Firefox driver library written in C++. It allow debugging firefox
  - `FireFoxDriver::NavigateTo`    : method, navigate to url in parameter within the tab in parameter
 
  ## CLI
- 
+
  FireFox Driver CLI
 
 ```
 ff-driver-cmd.exe {OPTIONS}
 
-  OPTIONS:
+ OPTIONS:
 
       -h, --help                        Display this help menu
       -l, --listTabs                    List all opened tab within Firefox
       -n[newTab], --new=[newTab]        Open new tab within Firefox
       -c[closeTab], --close=[closeTab]  Close Tab id
+      --navigateTo                      Navigate tab to a an URL
+      --id=[ID]                         tab ID
+      --url=[url]                       Url
+
 ```

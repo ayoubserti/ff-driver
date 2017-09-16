@@ -9,6 +9,7 @@ ff-driver is a Firefox driver library written in C++. It allow debugging firefox
  - `FireFoxDriver::NavigateTo`    : method, navigate to url in parameter within the tab in parameter
 
  ## CLI
+ 
  FireFox Driver CLI
 
 ```

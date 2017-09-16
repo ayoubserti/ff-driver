@@ -9,6 +9,7 @@
 #include "rapidjson/writer.h"
 
 #include <iostream>
+#include <regex>
 
 constexpr size_t  kMax_len_len = 20; // max  packet 'length' representation
 
@@ -218,6 +219,13 @@ void FireFoxDriver::CloseTab(const Tab & inTab)
 
 	_ReadOneJSONPacket();
 
+}
+
+void FireFoxDriver::ReloadTab(const Tab & inTab)
+{
+	string msg = "{\"to\":\":actor\", \"type\": \"reload\"}";
+	msg = std::regex_replace(msg, regex(":actor"), inTab.GetActor());
+	_SendRequest(msg);
 }
 
 

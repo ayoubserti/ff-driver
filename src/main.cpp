@@ -15,6 +15,7 @@ int main(int argc, char** argv)
 	args::Flag	navigateTab(flagGroup, "nabivateTo", "Navigate tab to a an URL", { "navigateTo" });
 	args::ValueFlag<int> tabId(flagGroup, "ID", "tab ID", { "id" });
 	args::ValueFlag<string> navigateUrl(flagGroup, "url", "Url", { "url" });
+	args::ValueFlag<int>  reloadTab(flagGroup, "reload", "Reload Tab", { "reload" });
 	
 	
 
@@ -88,6 +89,16 @@ int main(int argc, char** argv)
 		else if (!navigateUrl)
 		{
 			cerr << "url forgotten" << endl;
+		}
+	}
+
+	if (reloadTab)
+	{
+		auto allTabs = ffDriver.GetTabList();
+		int TabId = args::get(reloadTab);
+		if (allTabs.size() >= TabId && TabId >0) {
+
+			ffDriver.ReloadTab(allTabs[TabId-1]);
 		}
 	}
 	

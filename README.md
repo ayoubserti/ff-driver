@@ -12,6 +12,7 @@ ff-driver is a Firefox driver library written in C++. It allow debugging firefox
  ## CLI
 
  FireFox Driver CLI
+ ![Image of sample](sample.png)
 
 ```
 ff-driver-cmd.exe {OPTIONS}

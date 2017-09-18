@@ -34,7 +34,12 @@ class Tab{
 
     public:
 
-
+		enum TabState {
+			eDetached,
+			ePaused,
+			eRunning,
+			eExited
+		};
     string GetURL() const;
     string GetTitle() const;
     string GetActor() const;

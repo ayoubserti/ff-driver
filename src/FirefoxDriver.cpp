@@ -229,6 +229,82 @@ void FireFoxDriver::ReloadTab(const Tab & inTab)
 }
 
 
+const string FireFoxDriver::EvaluateJS(const Tab& inTab, const string& inScript)
+{
+	rapidjson::Document doc;
+	doc.SetObject();
+	doc.AddMember("to", inTab.GetConsoleActor(), doc.GetAllocator());
+	doc.AddMember("type", "evaluateJS", doc.GetAllocator());
+	doc.AddMember("text", inScript, doc.GetAllocator());
+
+	JSONPacket reply("");
+	//serialiaze msg
+	{
+		rapidjson::StringBuffer buffer;
+		rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+		doc.Accept(writer);
+
+		reply = _SendRequest(buffer.GetString());
+
+	}
+	
+	//parse result
+	doc.Parse(reply.GetMsg());
+	string result = "";
+	rapidjson::Value valOfdoc = doc.GetObject();
+
+	
+#if 0
+	//code deactivated for lather.  
+	/*
+		
+	*/
+
+	if (valOfdoc["result"].IsObject())
+	{
+		//object 
+		auto res = valOfdoc["result"].GetObject();
+		string res_type = res["type"].GetString();
+		if (string("undefined") == res_type )
+		{
+			return "undefined";
+		}
+		else if (  string("object") == res_type)
+		{
+			//create object and ownproperties values
+			auto obj = res["preview"]["ownProperties"].GetObject();
+			rapidjson::Document res_doc;
+			res_doc.SetObject();
+			auto it = obj.MemberBegin(); auto end = obj.MemberEnd();
+			for (; it != end; ++it)
+			{
+				res_doc.AddMember(it->name, it->value.GetObject()["value"], res_doc.GetAllocator());
+			}
+
+			rapidjson::StringBuffer buffer;
+			rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+			res_doc.Accept(writer);
+
+			return buffer.GetString();
+		}
+	}
+	else
+	{
+
+	}
+#endif
+
+	rapidjson::StringBuffer buffer;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+	
+	valOfdoc["result"].Accept(writer);
+
+	return buffer.GetString();
+
+
+
+}
+
 string Tab::GetURL() const
 {
 	return m_TabURL;

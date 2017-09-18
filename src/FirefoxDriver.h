@@ -138,6 +138,17 @@ class FireFoxDriver : public FirefoxProcess {
     */
 
     void ReloadTab(const Tab& inTab);
+
+	/*
+	@function EvaluteJS
+	@params  
+			-inTab tab where the javascript code will be evaluated
+			-inScript  script to evaluate
+	@return 
+			return result as text
+	*/
+
+	const string EvaluateJS(const Tab& inTab, const string& inScript);
     
 };
 

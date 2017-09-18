@@ -1,10 +1,28 @@
 #include "FirefoxDriver.h"
 #include "args.hxx"
 #include <iostream>
+#include <fstream>
+
+
+#define _TEST 0
+
+
+
+
 
 int main(int argc, char** argv)
 {
+#if _TEST
 
+	//for testing purpose
+	//TODO: cleanup when finish with branch
+	FireFoxDriver ffDriver;
+	auto tabs = ffDriver.GetTabList();
+	ffDriver.EvaluateJS(tabs[0], " var obj = {} ; var i = {'a':125, b :obj};");
+	cout << ffDriver.EvaluateJS(tabs[0], "  l;") << endl;
+	return 0;
+
+#else
 	//parse command line args
 	args::ArgumentParser parser("FireFox Driver CLI");
 	args::HelpFlag help(parser, "help", "Display this help menu", { 'h', "help" });
@@ -16,8 +34,9 @@ int main(int argc, char** argv)
 	args::ValueFlag<int> tabId(flagGroup, "ID", "tab ID", { "id" });
 	args::ValueFlag<string> navigateUrl(flagGroup, "url", "Url", { "url" });
 	args::ValueFlag<int>  reloadTab(flagGroup, "reload", "Reload Tab", { "reload" });
-	
-	
+	args::Flag evaluateJS(flagGroup, "evaluateJS", "Evaluate Javascript code on Tab", { "eval" });
+	args::ValueFlag<string> file(flagGroup, "file to evaluate", "File to evaluate", { "file" });
+	args::ValueFlag<string> text(flagGroup, "text to evaluate", "text to evaluate", { "text" });
 
 
 
@@ -102,5 +121,40 @@ int main(int argc, char** argv)
 		}
 	}
 	
+	if (evaluateJS)
+	{
+		auto allTabs = ffDriver.GetTabList();
+		int TabId = args::get(tabId);
+		string jscode = "";
+		if (file)
+		{
+			std::fstream fileScript;
+			fileScript.open(args::get(file), std::ios_base::in);
+			if (!fileScript.is_open()) {
+				cerr << "Can't open file " << args::get(file) << endl;
+				return 2;
+			}
+			std::string contentScript((std::istreambuf_iterator<char>(fileScript)),
+				(std::istreambuf_iterator<char>()));
+			jscode = contentScript;
+
+		}
+		else if (text)
+		{
+			jscode = args::get(text);
+		}
+		else
+		{
+			cerr << "You must use --file or --text with --eval command" << endl;
+			return 1;
+		}
+
+		if (allTabs.size() >= TabId && TabId >0) {
+
+			cout << ffDriver.EvaluateJS(allTabs[TabId - 1],jscode) << endl;
+		}
+	}
     return 0;
+#endif
 }
+

@@ -12,14 +12,15 @@ ff-driver is a Firefox driver library written in C++. It allow debugging firefox
  ## CLI
 
  FireFox Driver CLI
+
  ![Image of sample](sample.png)
 
 ```
 ff-driver-cmd.exe {OPTIONS}
 
-OPTIONS:
+  OPTIONS:
 
-      -h, --help                        Display this help menu
+         -h, --help                        Display this help menu
       -l, --listTabs                    List all opened tab within Firefox
       -n[newTab], --new=[newTab]        Open new tab within Firefox
       -c[closeTab], --close=[closeTab]  Close Tab id
@@ -27,6 +28,9 @@ OPTIONS:
       --id=[ID]                         tab ID
       --url=[url]                       Url
       --reload=[reload]                 Reload Tab
+      --eval                            Evaluate Javascript code on Tab
+      --file=[file to evaluate]         File to evaluate
+      --text=[text to evaluate]         text to evaluate
 
 ```
 

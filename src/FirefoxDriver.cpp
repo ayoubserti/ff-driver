@@ -305,6 +305,17 @@ const string FireFoxDriver::EvaluateJS(const Tab& inTab, const string& inScript)
 
 }
 
+void FireFoxDriver::AttachTab(const Tab& inTab, function<void(const string&)>&& inCB)
+{
+	string msg = "{\"to\":\":actor\", \"type\": \"attach\"}";
+	msg = std::regex_replace(msg, regex(":actor"), inTab.GetActor());
+	auto reply = _SendRequest(msg);
+	while (true)
+		reply = _ReadOneJSONPacket();
+
+	return;
+}
+
 string Tab::GetURL() const
 {
 	return m_TabURL;

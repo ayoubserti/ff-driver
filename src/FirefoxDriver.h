@@ -16,7 +16,9 @@
 #include <vector>
 
 #include "ProcessLauncher.h"
+#include "JSONPacket.h"
 
+#include <functional>
 
 
 using namespace std;
@@ -39,46 +41,6 @@ class Tab{
     string GetTitle() const;
     string GetActor() const;
 	string GetConsoleActor() const;
-};
-
-
-class JSONPacket {
-	string m_msg;
-public:
-	JSONPacket(const string& msg) : m_msg(msg) {}
-	string Stringify() {
-		string result;
-		result += std::to_string(m_msg.size());
-		result += ":";
-		result += m_msg;
-		return result;
-	}
-
-	static JSONPacket Parse(const string& jsonmsg) {
-
-		JSONPacket packet("");
-		size_t offset = jsonmsg.find(":");
-		if (offset>0)
-		{
-			size_t packetlen = std::stol(jsonmsg.substr(0, offset + 1));
-			packet.m_msg = jsonmsg.substr(offset + 1,packetlen); //be sure we get only one single packet form msg
-
-		}
-
-		return packet;
-
-	}
-
-	string GetMsg()
-	{
-		return m_msg;
-	}
-
-	const string& GetMsg() const
-	{
-		return m_msg;
-	}
-
 };
 
 
@@ -149,6 +111,17 @@ class FireFoxDriver : public FirefoxProcess {
 	*/
 
 	const string EvaluateJS(const Tab& inTab, const string& inScript);
+
+	/*
+		@function  AttachTab
+		@params
+				-inTab tab to attach
+				-inCB function to execute for every event comming
+		@return void
+
+	*/
+
+	void	AttachTab(const Tab& inTab, function<void(const string&)>&& inCB);
     
 };
 

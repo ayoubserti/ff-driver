@@ -4,7 +4,7 @@
 #include <fstream>
 
 
-#define _TEST 0
+#define _TEST 1
 
 
 
@@ -18,8 +18,11 @@ int main(int argc, char** argv)
 	//TODO: cleanup when finish with branch
 	FireFoxDriver ffDriver;
 	auto tabs = ffDriver.GetTabList();
-	ffDriver.EvaluateJS(tabs[0], " var obj = {} ; var i = {'a':125, b :obj};");
-	cout << ffDriver.EvaluateJS(tabs[0], "  l;") << endl;
+	
+	ffDriver.AttachTab(tabs[0], [](const string&  r) {
+		cout << r << endl;
+	});
+
 	return 0;
 
 #else

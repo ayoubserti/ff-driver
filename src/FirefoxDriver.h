@@ -12,15 +12,17 @@
 #define  ASIO_STANDALONE 1
 #include "asio.hpp"
 
+#include "Network.h"
 #include <string>
 #include <vector>
 
 #include "ProcessLauncher.h"
 #include "JSONPacket.h"
+#include <map>
 
 #include <functional>
 
-
+#define ASYNC_API 1
 using namespace std;
 
 //forward declation
@@ -44,13 +46,15 @@ class Tab{
 };
 
 
-class FireFoxDriver : public FirefoxProcess {
+
+class FireFoxDriver : public FirefoxProcess ,public INetworkDelegate {
 
     
     FireFoxDriver(const FireFoxDriver& ) = delete;
     FireFoxDriver( FireFoxDriver&& ) = delete;
     
 	asio::io_service	m_ioservice;
+
 	asio::ip::tcp::socket m_endpoint;
 
 	JSONPacket  _ReadOneJSONPacket();
@@ -58,6 +62,20 @@ class FireFoxDriver : public FirefoxProcess {
 	JSONPacket  _SendRequest(const string& msg);
 
 	static vector<string>  s_unsolicitedEvents;
+	
+	/*
+		while we are in asynchronous mode and Debugger Server doesn't tag request to Actors
+		every Actor can only have one active Request which is in pending state
+
+	*/
+	map<string, function<void(const JSONPacket&)> > m_activeRequests;
+
+	
+	
+
+#if ASYNC_API
+	Endpoint  m_asyncEndpoint;
+#endif
 
     public:
     
@@ -73,6 +91,9 @@ class FireFoxDriver : public FirefoxProcess {
         @return   vector of Tab object
     */
     std::vector<Tab> GetTabList();
+
+	//asynchronous version
+	void GetTabList(function<void(const vector<Tab>&)>&& inCB);
     
     /*
         @function OpenNewTab
@@ -122,7 +143,32 @@ class FireFoxDriver : public FirefoxProcess {
 	*/
 
 	void	AttachTab(const Tab& inTab, function<void(const string&)>&& inCB);
+
+	//from INetworkDelegate
+
+	asio::io_context& GetIOService() override;
+
+	void OnPacketRecevied(const JSONPacket&) override;
     
+
+
+	/*
+		@function	Run
+		@info		run underlaying io_service for aynchronous operation
+					it should be the last line of code because it will block
+	*/
+	void Run();
+
+
+
+	/*
+		@function OnConnect
+		@info		install the callback function to be executed when The driver is connected to FF
+	*/
+	void OnConnect(function<void(void)>&&);
+
+	
+
 };
 
 

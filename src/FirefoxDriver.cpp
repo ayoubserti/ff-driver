@@ -76,13 +76,23 @@ JSONPacket FireFoxDriver::_SendRequest(const string & msg)
 FireFoxDriver::FireFoxDriver() :
 	FirefoxProcess()
 	,m_endpoint(m_ioservice)
+#if ASYNC_API
+	,m_asyncEndpoint(*this,"127.0.0.1",6000)
+#endif
 {
+#if !ASYNC_API
 	m_endpoint.connect(tcp::endpoint(address::from_string("127.0.0.1"), 6000));
+
 
 	//when connected; server send some usefull information about  connection
 	
 	JSONPacket p = _ReadOneJSONPacket();
+#else
 	
+	m_asyncEndpoint.Start();
+#endif
+
+
 
 }
 
@@ -138,6 +148,44 @@ std::vector<Tab> FireFoxDriver::GetTabList()
 	}
 
 	return tabs;
+}
+
+void FireFoxDriver::GetTabList(function<void(const vector<Tab>&)>&& inCB)
+{
+	m_activeRequests["root"] = [=](const JSONPacket& packet) {
+
+		rapidjson::Document document;
+		if (document.Parse(packet.GetMsg()).HasParseError())
+		{
+			std::cerr << "Error while Parsing recieved JSON:  " << document.GetParseError() << std::endl;
+			return;
+		}
+		auto obj = document.GetObject();
+		//check actor
+		string actor = obj["from"].GetString();
+		if (actor == "root" && obj.HasMember("tabs"))
+		{
+			vector<Tab> tabs;
+			const auto& tabsArray = obj["tabs"].GetArray();
+			for (auto& it : tabsArray)
+			{
+				auto tabObj = it.GetObject();
+				Tab tab;
+				tab.m_title = tabObj["title"].GetString();
+				tab.m_tabActor = tabObj["actor"].GetString();
+				tab.m_TabURL = tabObj["url"].GetString();
+				tab.m_consoleActor = tabObj["consoleActor"].GetString();
+				tabs.push_back(tab);
+			}
+			inCB(tabs);
+		} 
+	};
+	
+	m_ioservice.dispatch([&]() {
+		JSONPacket jsonPacket("{ \"to\":\"root\", \"type\":\"listTabs\" }");
+		m_asyncEndpoint.Send(jsonPacket);
+	});
+	
 }
 
 Tab FireFoxDriver::OpenNewTab(const string& url)
@@ -314,6 +362,62 @@ void FireFoxDriver::AttachTab(const Tab& inTab, function<void(const string&)>&& 
 		reply = _ReadOneJSONPacket();
 
 	return;
+}
+
+asio::io_context & FireFoxDriver::GetIOService()
+{
+	return m_ioservice;
+}
+
+void FireFoxDriver::OnPacketRecevied(const JSONPacket &packet)
+{
+	cout << packet.GetMsg() << endl;
+
+	rapidjson::Document document;
+	if (document.Parse(packet.GetMsg()).HasParseError())
+	{
+		std::cerr << "Error while Parsing recieved JSON:  " << document.GetParseError() << std::endl;
+	}
+	else
+	{
+		auto obj = document.GetObject();
+		//check actor
+		string actor = obj["from"].GetString();
+		/*if (actor == "root" && obj.HasMember("tabs"))
+		{
+			const auto& tabsArray = obj["tabs"].GetArray();
+			for (auto& it : tabsArray)
+			{
+				auto tabObj = it.GetObject();
+				Tab tab;
+				tab.m_title = tabObj["title"].GetString();
+				tab.m_tabActor = tabObj["actor"].GetString();
+				tab.m_TabURL = tabObj["url"].GetString();
+				tab.m_consoleActor = tabObj["consoleActor"].GetString();
+				tabs.push_back(tab);
+			}
+		}*/
+		m_activeRequests[actor](packet);
+	}
+
+
+}
+
+void FireFoxDriver::Run()
+{
+	
+	m_ioservice.run();
+}
+
+void FireFoxDriver::OnConnect(function<void(void)>&& inCB)
+{
+	// become ready
+	m_ioservice.dispatch([=]() {
+		
+		cout << "Ready..." << endl;
+		inCB();
+
+	});
 }
 
 string Tab::GetURL() const

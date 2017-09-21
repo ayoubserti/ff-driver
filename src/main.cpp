@@ -17,12 +17,25 @@ int main(int argc, char** argv)
 	//for testing purpose
 	//TODO: cleanup when finish with branch
 	FireFoxDriver ffDriver;
-	auto tabs = ffDriver.GetTabList();
-	
-	ffDriver.AttachTab(tabs[0], [](const string&  r) {
-		cout << r << endl;
-	});
+	auto completion= [&]() {
 
+		ffDriver.GetTabList([](const vector<Tab>& tabs) {
+			int i = 1;
+			for (auto& it : tabs)
+			{
+
+				cout << "Tab #" << i << ": " << endl;
+				cout << "	" << "title: " << it.GetTitle() << endl;
+				cout << "	" << "URL: " << it.GetURL() << endl;
+				cout << "	" << "actor" << it.GetActor() << endl;
+				++i;
+			}
+		});
+
+
+	};
+	ffDriver.OnConnect(completion);
+	ffDriver.Run();
 	return 0;
 
 #else

@@ -176,6 +176,14 @@ class FireFoxDriver : public FirefoxProcess ,public INetworkDelegate {
 	*/
 	void OnConnect(function<void(void)>&&);
 
+
+	/*
+		@function	Stop
+		@info		stop event polling, the main program continue 
+		@warning	doesn't close socket with FF 
+	*/
+
+	void Stop();
 	
 
 };

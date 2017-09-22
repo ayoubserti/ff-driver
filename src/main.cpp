@@ -19,7 +19,7 @@ int main(int argc, char** argv)
 	FireFoxDriver ffDriver;
 	auto completion= [&]() {
 
-		ffDriver.GetTabList([](const vector<Tab>& tabs) {
+		ffDriver.GetTabList([&](const vector<Tab>& tabs) {
 			int i = 1;
 			for (auto& it : tabs)
 			{
@@ -30,6 +30,8 @@ int main(int argc, char** argv)
 				cout << "	" << "actor" << it.GetActor() << endl;
 				++i;
 			}
+
+			ffDriver.Stop();
 		});
 
 

@@ -384,20 +384,7 @@ void FireFoxDriver::OnPacketRecevied(const JSONPacket &packet)
 		auto obj = document.GetObject();
 		//check actor
 		string actor = obj["from"].GetString();
-		/*if (actor == "root" && obj.HasMember("tabs"))
-		{
-			const auto& tabsArray = obj["tabs"].GetArray();
-			for (auto& it : tabsArray)
-			{
-				auto tabObj = it.GetObject();
-				Tab tab;
-				tab.m_title = tabObj["title"].GetString();
-				tab.m_tabActor = tabObj["actor"].GetString();
-				tab.m_TabURL = tabObj["url"].GetString();
-				tab.m_consoleActor = tabObj["consoleActor"].GetString();
-				tabs.push_back(tab);
-			}
-		}*/
+		
 		if (m_status == eWaitingHandShake)
 		{
 			m_status = eReady;
@@ -423,6 +410,11 @@ void FireFoxDriver::OnConnect(function<void(void)>&& inCB)
 {
 	// become ready
 	m_onConnectHandler = inCB;
+}
+
+void FireFoxDriver::Stop()
+{
+	m_ioservice.stop();
 }
 
 string Tab::GetURL() const

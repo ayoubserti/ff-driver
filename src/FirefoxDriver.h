@@ -71,6 +71,15 @@ class FireFoxDriver : public FirefoxProcess ,public INetworkDelegate {
 	map<string, function<void(const JSONPacket&)> > m_activeRequests;
 
 	
+	function<void(void)>  m_onConnectHandler;
+	
+	enum  DriverState {
+		eStop,
+		eWaitingHandShake,
+		eReady
+	};
+
+	DriverState m_status;
 	
 
 #if ASYNC_API

@@ -92,6 +92,7 @@ FireFoxDriver::FireFoxDriver() :
 	m_asyncEndpoint.Start();
 #endif
 
+	m_status = eWaitingHandShake;
 
 
 }
@@ -397,7 +398,16 @@ void FireFoxDriver::OnPacketRecevied(const JSONPacket &packet)
 				tabs.push_back(tab);
 			}
 		}*/
-		m_activeRequests[actor](packet);
+		if (m_status == eWaitingHandShake)
+		{
+			m_status = eReady;
+			m_onConnectHandler();
+		}
+		else
+		{
+			m_activeRequests[actor](packet);
+		}
+		
 	}
 
 
@@ -412,12 +422,7 @@ void FireFoxDriver::Run()
 void FireFoxDriver::OnConnect(function<void(void)>&& inCB)
 {
 	// become ready
-	m_ioservice.dispatch([=]() {
-		
-		cout << "Ready..." << endl;
-		inCB();
-
-	});
+	m_onConnectHandler = inCB;
 }
 
 string Tab::GetURL() const

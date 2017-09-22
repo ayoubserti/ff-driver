@@ -32,7 +32,9 @@ void Endpoint::Send(const JSONPacket & packet)
 
 	m_messageToSend = request.Stringify();
 
-	m_socket.async_write_some(asio::buffer(m_messageToSend), [](const std::error_code  & e, std::size_t len) {
+	m_socket.async_write_some(asio::buffer(m_messageToSend), [&](const std::error_code  & e, std::size_t len) {
+
+			
 	});
 }
 

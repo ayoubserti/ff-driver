@@ -25,8 +25,6 @@ public:
 
 	virtual void OnPacketRecevied(const JSONPacket&) = 0;
 
-	virtual void OnPacketSend(const JSONPacket&) = 0;
-
 };
 
 

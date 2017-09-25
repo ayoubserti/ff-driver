@@ -21,6 +21,7 @@
 #include <map>
 
 #include <functional>
+#include <memory>
 
 #define ASYNC_API 1
 using namespace std;
@@ -50,20 +51,19 @@ struct Request {
 
 private:
 
-	Request() = delete;
+	Request();
 public:
 
 	JSONPacket m_packet{ "" };
 	function<void(const JSONPacket&) > m_callback;
 	string		m_to{ "" };
 
-	Request(const string& to,const JSONPacket& packet, function<void(const JSONPacket&) >&& cb) {
+	Request(const string& to,const JSONPacket& packet, function<void(const JSONPacket&) >&& cb)
+	{
 		m_to = to;
 		m_packet = packet;
 		m_callback = cb;
 	}
-
-	
 
 };
 
@@ -76,25 +76,19 @@ class FireFoxDriver : public FirefoxProcess ,public INetworkDelegate {
     
 	asio::io_service	m_ioservice;
 
-	asio::ip::tcp::socket m_endpoint;
-
-	JSONPacket  _ReadOneJSONPacket();
-
-	JSONPacket  _SendRequest(const string& msg);
-
+	
 	static vector<string>  s_unsolicitedEvents;
+
+	typedef function<void(const JSONPacket&)>&&  CallBackType;
 	
 	/*
 		while we are in asynchronous mode and Debugger Server doesn't tag request to Actors
 		every Actor can only have one active Request
 
 	*/
+	vector<shared_ptr<Request>> m_pendingRequests;
 
-	vector<Request> m_pendingRequests;
-
-	map<string, Request >   m_activeRequests;
-
-	
+	map<string, shared_ptr<Request> >   m_activeRequests;
 
 	
 	function<void(void)>  m_onConnectHandler;
@@ -106,16 +100,12 @@ class FireFoxDriver : public FirefoxProcess ,public INetworkDelegate {
 	};
 
 	DriverState m_status;
-	
 
-#if ASYNC_API
 	Endpoint  m_asyncEndpoint;
-#endif
-
 	
-	void	_prepareToSend(const JSONPacket& packet);
+	void	_prepareToSend(const string& packet);
 
-    public:
+public:
     
     /*
         @ctor
@@ -126,52 +116,56 @@ class FireFoxDriver : public FirefoxProcess ,public INetworkDelegate {
     /*
         @function GetTabList
         @info     return vector of opened tab
+		@params	
+					-inCB callback function 
         @return   vector of Tab object
     */
-    std::vector<Tab> GetTabList();
+    
 
-	//asynchronous version
-	void GetTabList(function<void(const vector<Tab>&)>&& inCB);
+	void GetTabList(function<void(const vector<Tab>&)>&&  inCB);
     
     /*
         @function OpenNewTab
         @info    open new tab in the current firefox instance
-		@params  url to navigate to
+		@params 
+				-url to navigate to
+				-inCB callback function
         @warning   
     */
 
-    Tab     OpenNewTab(const string& url );
+    void     OpenNewTab(const string& url, CallBackType inCB);
 
 
     /*
         @function NavigateTo
     */
-    void    NavigateTo(const Tab& inTab, const std::string& inUrl);
     
-	void	NavigateTo(const Tab& inTab, const std::string& inUrl, function<void(const JSONPacket&)> && inCB);
+	void	NavigateTo(const Tab& inTab, const std::string& inUrl, CallBackType && inCB);
 	
 
     /*
         @function   CloseTab
     */
-    void CloseTab(const Tab& inTab);
+    void CloseTab(const Tab& inTab, CallBackType inCB);
 
     /*
      @function      ReloadTab
     */
 
-    void ReloadTab(const Tab& inTab);
+    void ReloadTab(const Tab& inTab, CallBackType inCB);
 
 	/*
 	@function EvaluteJS
 	@params  
 			-inTab tab where the javascript code will be evaluated
 			-inScript  script to evaluate
+			-inCB	   callback function
+
 	@return 
 			return result as text
 	*/
 
-	const string EvaluateJS(const Tab& inTab, const string& inScript);
+	void EvaluateJS(const Tab& inTab, const string& inScript, CallBackType inCB);
 
 	/*
 		@function  AttachTab
@@ -185,7 +179,7 @@ class FireFoxDriver : public FirefoxProcess ,public INetworkDelegate {
 
 	*/
 
-	void	AttachTab(const Tab& inTab, function<void(const JSONPacket&)>&& inCB);
+	void	AttachTab(const Tab& inTab, CallBackType inCB);
 
 	//from INetworkDelegate
 
@@ -193,9 +187,7 @@ class FireFoxDriver : public FirefoxProcess ,public INetworkDelegate {
 
 	void OnPacketRecevied(const JSONPacket&) override;
 
-    void OnPacketSend(const JSONPacket&) override;
-
-
+    
 	/*
 		@function	Run
 		@info		run underlaying io_service for aynchronous operation

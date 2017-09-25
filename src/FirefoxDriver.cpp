@@ -11,168 +11,19 @@
 #include <iostream>
 #include <regex>
 
-constexpr size_t  kMax_len_len = 20; // max  packet 'length' representation
-
 using namespace asio::ip;
 
 
 vector<string> FireFoxDriver::s_unsolicitedEvents = {"tabListChanged"};
 
-JSONPacket FireFoxDriver::_ReadOneJSONPacket()
-{
-	JSONPacket p("");
-	string value;
-	char buf[kMax_len_len] = { 0 };
-	std::error_code error;
-	size_t len = m_endpoint.read_some(asio::buffer(buf,kMax_len_len-1), error);
-	if (error)
-	{
-		//throw exception 
-	}
-	else
-	{
-		buf[len] = '\0';
-		string tmp = buf;
-		
-		size_t offset = tmp.find(':');
-		size_t packetlen = std::stol(tmp.substr(0, offset + 1)), trailling = packetlen - len +offset +1;
-
-		std::vector<char> reply(trailling);
-		
-		asio::read(m_endpoint, asio::buffer(reply), asio::transfer_exactly(trailling));
-		tmp.append(reply.begin(), reply.end());
-		p = JSONPacket::Parse(tmp);
-		rapidjson::Document doc;
-		if (!doc.Parse(p.GetMsg()).HasParseError())
-		{
-			if (doc.HasMember("type") &&  std::find(s_unsolicitedEvents.begin(), s_unsolicitedEvents.end(),doc["type"].GetString()) != s_unsolicitedEvents.end())
-				return _ReadOneJSONPacket();
-		}
-		
-	}
-	return p;
-}
-
-JSONPacket FireFoxDriver::_SendRequest(const string & msg)
-{
-	JSONPacket reply("");
-	JSONPacket request(msg);
-	
-	string requestStr = request.Stringify();
-
-	
-	std::error_code error;
-
-	m_endpoint.write_some(asio::buffer(requestStr), error);
-	if (!error)
-	{
-		reply = _ReadOneJSONPacket();
-	}
-
-	return reply;
-
-}
-
-void FireFoxDriver::_prepareToSend(const JSONPacket & packet)
-{
-	rapidjson::Document document;
-	if (document.Parse(packet.GetMsg()).HasParseError())
-	{
-		std::cerr << "Error while Parsing recieved JSON:  " << document.GetParseError() << std::endl;
-		return;
-	}
-	auto obj = document.GetObject();
-
-	string to = obj["to"].GetString();
-	if (m_activeRequests.find(to) == m_activeRequests.end())
-	{
-		//	activate it & send
-		m_asyncEndpoint.Send(packet);
-	}
-	else
-	{
-		//it's already active
-	}
-}
 
 FireFoxDriver::FireFoxDriver() :
 	FirefoxProcess()
-	,m_endpoint(m_ioservice)
-#if ASYNC_API
 	,m_asyncEndpoint(*this,"127.0.0.1",6000)
-#endif
-{
-#if !ASYNC_API
-	m_endpoint.connect(tcp::endpoint(address::from_string("127.0.0.1"), 6000));
-
-
-	//when connected; server send some usefull information about  connection
-	
-	JSONPacket p = _ReadOneJSONPacket();
-#else
-	
+{	
 	m_asyncEndpoint.Start();
-#endif
-
 	m_status = eWaitingHandShake;
-
-
 }
-
-std::vector<Tab> FireFoxDriver::GetTabList()
-{
-	std::vector<Tab> tabs;
-	std::error_code error;
-	JSONPacket jsonPacket("{ \"to\":\"root\", \"type\":\"listTabs\" }");
-	string packetized = jsonPacket.Stringify();
-	m_endpoint.write_some(asio::buffer(packetized,packetized.size()),error);
-
-	if (error) {
-		std::cout << "send failed: " << error.message() << std::endl;
-	}
-	else {
-		JSONPacket reply = _ReadOneJSONPacket();
-		if (error)
-		{
-			std::cerr << "send failed: " << error.message() << std::endl;
-		}
-		else
-		{
-			
-			rapidjson::Document document;
-			if (document.Parse(reply.GetMsg()).HasParseError())
-			{
-				std::cerr << "Error while Parsing recieved JSON:  " << document.GetParseError() << std::endl;
-			}
-			else
-			{
-				auto obj = document.GetObject();
-				//check actor
-				string actor = obj["from"].GetString();
-				if (actor == "root" && obj.HasMember("tabs"))
-				{
-					const auto& tabsArray = obj["tabs"].GetArray();
-					for (auto& it : tabsArray)
-					{
-						auto tabObj = it.GetObject();
-						Tab tab;
-						tab.m_title = tabObj["title"].GetString();
-						tab.m_tabActor = tabObj["actor"].GetString();
-						tab.m_TabURL = tabObj["url"].GetString();
-						tab.m_consoleActor = tabObj["consoleActor"].GetString();
-						tabs.push_back(tab);
-					}
-				}
-			}
-
-		}
-		
-
-	}
-
-	return tabs;
-}
-
 void FireFoxDriver::GetTabList(function<void(const vector<Tab>&)>&& inCB)
 {
 
@@ -206,19 +57,13 @@ void FireFoxDriver::GetTabList(function<void(const vector<Tab>&)>&& inCB)
 		}
 	};
 
-	
-	m_pendingRequests.push_back(Request("root",jsonPacket, completion));
-	
-	m_ioservice.dispatch([&]() {
-		
-		_prepareToSend(jsonPacket);
-	});
-	
+	shared_ptr<Request> req(new Request("root", jsonPacket, completion));
+	m_pendingRequests.push_back(req);
 }
 
-Tab FireFoxDriver::OpenNewTab(const string& url)
+void FireFoxDriver::OpenNewTab(const string& url, CallBackType inCB)
 {
-	Tab tab;
+	/*Tab tab;
 	auto tabs = GetTabList();
 	if (tabs.size())
 	{
@@ -246,29 +91,7 @@ Tab FireFoxDriver::OpenNewTab(const string& url)
 		
 	}
 	return tab;
-}
-
-void FireFoxDriver::NavigateTo(const Tab & inTab, const std::string& inUrl)
-{
-	
-	rapidjson::Document msg(rapidjson::kObjectType);
-
-	msg.SetObject();
-	msg.AddMember("to", inTab.GetActor(), msg.GetAllocator());
-
-	msg.AddMember("type", "navigateTo", msg.GetAllocator());
-	msg.AddMember("url", inUrl, msg.GetAllocator());
-	
-	//serialiaze msg
-	rapidjson::StringBuffer buffer;
-	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-	msg.Accept(writer);
-
-	JSONPacket json(buffer.GetString());
-	m_endpoint.write_some(asio::buffer(json.Stringify()));
-
-	_ReadOneJSONPacket();
-
+	*/
 }
 
 void FireFoxDriver::NavigateTo(const Tab & inTab, const std::string & inUrl, function<void(const JSONPacket&)>&& inCB)
@@ -289,11 +112,14 @@ void FireFoxDriver::NavigateTo(const Tab & inTab, const std::string & inUrl, fun
 	msg.Accept(writer);
 
 	JSONPacket json(buffer.GetString());
-	m_pendingRequests.push_back(Request(inTab.GetActor(),json, std::ref(inCB)));
-	_prepareToSend(json);
+	string tabActor = inTab.GetActor();
+	shared_ptr<Request> req(new Request(tabActor, json, std::move(inCB)));
+	m_pendingRequests.push_back(req);
+	
+	
 }
 
-void FireFoxDriver::CloseTab(const Tab & inTab)
+void FireFoxDriver::CloseTab(const Tab & inTab, CallBackType inCB)
 {
 	//as there is no Request msg to close a Tab; we evaluate 'window.close()'in the Tab
 	//this hack works only with tab open using a script
@@ -313,23 +139,21 @@ void FireFoxDriver::CloseTab(const Tab & inTab)
 	msg.Accept(writer);
 
 	JSONPacket json(buffer.GetString());
-	m_endpoint.write_some(asio::buffer(json.Stringify()));
-
-	_ReadOneJSONPacket();
+	shared_ptr<Request> req(new Request(inTab.GetActor(), json, std::move(inCB)));
 
 }
 
-void FireFoxDriver::ReloadTab(const Tab & inTab)
+void FireFoxDriver::ReloadTab(const Tab & inTab, CallBackType inCB)
 {
 	string msg = "{\"to\":\":actor\", \"type\": \"reload\"}";
 	msg = std::regex_replace(msg, regex(":actor"), inTab.GetActor());
-	_SendRequest(msg);
+	
 }
 
 
-const string FireFoxDriver::EvaluateJS(const Tab& inTab, const string& inScript)
+void FireFoxDriver::EvaluateJS(const Tab& inTab, const string& inScript, CallBackType inCB)
 {
-	rapidjson::Document doc;
+	/*rapidjson::Document doc;
 	doc.SetObject();
 	doc.AddMember("to", inTab.GetConsoleActor(), doc.GetAllocator());
 	doc.AddMember("type", "evaluateJS", doc.GetAllocator());
@@ -353,10 +177,7 @@ const string FireFoxDriver::EvaluateJS(const Tab& inTab, const string& inScript)
 
 	
 #if 0
-	//code deactivated for lather.  
-	/*
-		
-	*/
+	
 
 	if (valOfdoc["result"].IsObject())
 	{
@@ -398,6 +219,7 @@ const string FireFoxDriver::EvaluateJS(const Tab& inTab, const string& inScript)
 	valOfdoc["result"].Accept(writer);
 
 	return buffer.GetString();
+	*/
 
 
 
@@ -408,8 +230,10 @@ void FireFoxDriver::AttachTab(const Tab& inTab, function<void(const JSONPacket&)
 	string msg = "{\"to\":\":actor\", \"type\": \"attach\"}";
 	msg = std::regex_replace(msg, regex(":actor"), inTab.GetActor());
 	JSONPacket request(msg);
-	m_pendingRequests.push_back(Request(inTab.GetActor(), request, std::ref(inCB)));
-	_prepareToSend(request);
+	
+	shared_ptr<Request> req(new Request(inTab.GetActor(), request, std::move(inCB)));
+
+	m_pendingRequests.push_back(req);
 }
 
 asio::io_context & FireFoxDriver::GetIOService()
@@ -439,52 +263,51 @@ void FireFoxDriver::OnPacketRecevied(const JSONPacket &packet)
 		}
 		else
 		{
-			m_activeRequests[actor].m_callback(packet);
-			OnPacketSend(m_activeRequests[actor].m_packet);
-
+			m_activeRequests[actor]->m_callback(packet);
+			
+			
 		}
+		_prepareToSend(actor);
 		
 	}
 
 
 }
 
-void FireFoxDriver::OnPacketSend(const JSONPacket& packet)
+void FireFoxDriver::_prepareToSend(const string& actor)
 {
-	
-	rapidjson::Document document;
-	if (document.Parse(packet.GetMsg()).HasParseError())
-	{
-		std::cerr << "Error while Parsing recieved JSON:  " << document.GetParseError() << std::endl;
-		return;
-	}
-	auto obj = document.GetObject();
+	string to = actor;
 
-	string to = obj["to"].GetString();
-	auto it = find_if(m_pendingRequests.begin(), m_pendingRequests.end(), [&to](const Request& req ) {
-		if (req.m_to == to)
-			return true;
-		return false;
-	});
-	vector<int> elemToShrink;
-	int i = 0;
+	vector<string> elemToShrink;
+	
 	for (auto& it : m_pendingRequests)
 	{
-		if (m_activeRequests.find(it.m_to) != m_activeRequests.end()) {
-			elemToShrink.push_back(i);
+		if (m_activeRequests.find(it->m_to) != m_activeRequests.end()) {
+			elemToShrink.push_back(it->m_to);
+			
 		}
 		else
 		{
-			m_asyncEndpoint.Send(it.m_packet);
-			m_activeRequests[to] = std::move(it);
+			m_asyncEndpoint.Send(it->m_packet);
+			m_activeRequests[it->m_to] = it;
 		}
-		i++;
+		
 	}
 
-	for (auto& it : elemToShrink)
+	std::remove_if(m_pendingRequests.begin(), m_pendingRequests.end(), [&](const shared_ptr<Request> req) {
+		if (find(elemToShrink.begin(), elemToShrink.end(), req->m_to) != elemToShrink.end())
+			return true;
+		return false;
+	});
+	
+	//remove empty
+	size_t t = elemToShrink.size();
+	while (t)
 	{
-		m_pendingRequests.erase(it);
+		m_pendingRequests.pop_back();
+		--t;
 	}
+
 	
 }
 

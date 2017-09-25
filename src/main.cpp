@@ -31,10 +31,19 @@ int main(int argc, char** argv)
 				++i;
 			}
 
-			ffDriver.Stop();
+			ffDriver.NavigateTo(tabs[0], "http://youtube.com", [](const JSONPacket& packet) {
+
+				
+			});
+
+			ffDriver.AttachTab(tabs[1], [] (const JSONPacket& packet){
+
+				
+
+			});
 		});
 
-
+		
 	};
 	ffDriver.OnConnect(completion);
 	ffDriver.Run();

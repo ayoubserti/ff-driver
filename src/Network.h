@@ -13,6 +13,7 @@
 #include "JSONPacket.h"
 #include <functional>
 #include <string>
+#include <queue>
 class FireFoxDriver;
 
 
@@ -23,6 +24,8 @@ public:
 	virtual asio::io_context& GetIOService() = 0;
 
 	virtual void OnPacketRecevied(const JSONPacket&) = 0;
+
+	virtual void OnPacketSend(const JSONPacket&) = 0;
 
 };
 
@@ -43,11 +46,14 @@ class Endpoint {
 
 	JSONPacket m_lastpacket;
 
-	string     m_messageToSend;
+	queue<string>     m_messagesToSend;
+	string			m_messageToSend;
 
 	void read_handler(const std::error_code&, std::size_t);
 
 	bool read_message();
+
+	void send_handler (const std::error_code&, std::size_t);
 
 public :
 	Endpoint(INetworkDelegate& delegator, const std::string&  address, long port);

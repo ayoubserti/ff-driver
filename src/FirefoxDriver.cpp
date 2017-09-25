@@ -73,6 +73,28 @@ JSONPacket FireFoxDriver::_SendRequest(const string & msg)
 
 }
 
+void FireFoxDriver::_prepareToSend(const JSONPacket & packet)
+{
+	rapidjson::Document document;
+	if (document.Parse(packet.GetMsg()).HasParseError())
+	{
+		std::cerr << "Error while Parsing recieved JSON:  " << document.GetParseError() << std::endl;
+		return;
+	}
+	auto obj = document.GetObject();
+
+	string to = obj["to"].GetString();
+	if (m_activeRequests.find(to) == m_activeRequests.end())
+	{
+		//	activate it & send
+		m_asyncEndpoint.Send(packet);
+	}
+	else
+	{
+		//it's already active
+	}
+}
+
 FireFoxDriver::FireFoxDriver() :
 	FirefoxProcess()
 	,m_endpoint(m_ioservice)
@@ -153,7 +175,9 @@ std::vector<Tab> FireFoxDriver::GetTabList()
 
 void FireFoxDriver::GetTabList(function<void(const vector<Tab>&)>&& inCB)
 {
-	m_activeRequests["root"] = [=](const JSONPacket& packet) {
+
+	JSONPacket jsonPacket("{ \"to\":\"root\", \"type\":\"listTabs\" }");
+	auto completion = [=](const JSONPacket& packet) {
 
 		rapidjson::Document document;
 		if (document.Parse(packet.GetMsg()).HasParseError())
@@ -179,12 +203,15 @@ void FireFoxDriver::GetTabList(function<void(const vector<Tab>&)>&& inCB)
 				tabs.push_back(tab);
 			}
 			inCB(tabs);
-		} 
+		}
 	};
+
+	
+	m_pendingRequests.push_back(Request("root",jsonPacket, completion));
 	
 	m_ioservice.dispatch([&]() {
-		JSONPacket jsonPacket("{ \"to\":\"root\", \"type\":\"listTabs\" }");
-		m_asyncEndpoint.Send(jsonPacket);
+		
+		_prepareToSend(jsonPacket);
 	});
 	
 }
@@ -242,6 +269,28 @@ void FireFoxDriver::NavigateTo(const Tab & inTab, const std::string& inUrl)
 
 	_ReadOneJSONPacket();
 
+}
+
+void FireFoxDriver::NavigateTo(const Tab & inTab, const std::string & inUrl, function<void(const JSONPacket&)>&& inCB)
+{
+	
+	
+	rapidjson::Document msg(rapidjson::kObjectType);
+
+	msg.SetObject();
+	msg.AddMember("to", inTab.GetActor(), msg.GetAllocator());
+
+	msg.AddMember("type", "navigateTo", msg.GetAllocator());
+	msg.AddMember("url", inUrl, msg.GetAllocator());
+
+	//serialiaze msg
+	rapidjson::StringBuffer buffer;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+	msg.Accept(writer);
+
+	JSONPacket json(buffer.GetString());
+	m_pendingRequests.push_back(Request(inTab.GetActor(),json, std::ref(inCB)));
+	_prepareToSend(json);
 }
 
 void FireFoxDriver::CloseTab(const Tab & inTab)
@@ -354,15 +403,13 @@ const string FireFoxDriver::EvaluateJS(const Tab& inTab, const string& inScript)
 
 }
 
-void FireFoxDriver::AttachTab(const Tab& inTab, function<void(const string&)>&& inCB)
+void FireFoxDriver::AttachTab(const Tab& inTab, function<void(const JSONPacket&)>&& inCB)
 {
 	string msg = "{\"to\":\":actor\", \"type\": \"attach\"}";
 	msg = std::regex_replace(msg, regex(":actor"), inTab.GetActor());
-	auto reply = _SendRequest(msg);
-	while (true)
-		reply = _ReadOneJSONPacket();
-
-	return;
+	JSONPacket request(msg);
+	m_pendingRequests.push_back(Request(inTab.GetActor(), request, std::ref(inCB)));
+	_prepareToSend(request);
 }
 
 asio::io_context & FireFoxDriver::GetIOService()
@@ -392,12 +439,53 @@ void FireFoxDriver::OnPacketRecevied(const JSONPacket &packet)
 		}
 		else
 		{
-			m_activeRequests[actor](packet);
+			m_activeRequests[actor].m_callback(packet);
+			OnPacketSend(m_activeRequests[actor].m_packet);
+
 		}
 		
 	}
 
 
+}
+
+void FireFoxDriver::OnPacketSend(const JSONPacket& packet)
+{
+	
+	rapidjson::Document document;
+	if (document.Parse(packet.GetMsg()).HasParseError())
+	{
+		std::cerr << "Error while Parsing recieved JSON:  " << document.GetParseError() << std::endl;
+		return;
+	}
+	auto obj = document.GetObject();
+
+	string to = obj["to"].GetString();
+	auto it = find_if(m_pendingRequests.begin(), m_pendingRequests.end(), [&to](const Request& req ) {
+		if (req.m_to == to)
+			return true;
+		return false;
+	});
+	vector<int> elemToShrink;
+	int i = 0;
+	for (auto& it : m_pendingRequests)
+	{
+		if (m_activeRequests.find(it.m_to) != m_activeRequests.end()) {
+			elemToShrink.push_back(i);
+		}
+		else
+		{
+			m_asyncEndpoint.Send(it.m_packet);
+			m_activeRequests[to] = std::move(it);
+		}
+		i++;
+	}
+
+	for (auto& it : elemToShrink)
+	{
+		m_pendingRequests.erase(it);
+	}
+	
 }
 
 void FireFoxDriver::Run()

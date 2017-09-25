@@ -46,6 +46,27 @@ class Tab{
 };
 
 
+struct Request {
+
+private:
+
+	Request() = delete;
+public:
+
+	JSONPacket m_packet{ "" };
+	function<void(const JSONPacket&) > m_callback;
+	string		m_to{ "" };
+
+	Request(const string& to,const JSONPacket& packet, function<void(const JSONPacket&) >&& cb) {
+		m_to = to;
+		m_packet = packet;
+		m_callback = cb;
+	}
+
+	
+
+};
+
 
 class FireFoxDriver : public FirefoxProcess ,public INetworkDelegate {
 
@@ -65,10 +86,15 @@ class FireFoxDriver : public FirefoxProcess ,public INetworkDelegate {
 	
 	/*
 		while we are in asynchronous mode and Debugger Server doesn't tag request to Actors
-		every Actor can only have one active Request which is in pending state
+		every Actor can only have one active Request
 
 	*/
-	map<string, function<void(const JSONPacket&)> > m_activeRequests;
+
+	vector<Request> m_pendingRequests;
+
+	map<string, Request >   m_activeRequests;
+
+	
 
 	
 	function<void(void)>  m_onConnectHandler;
@@ -85,6 +111,9 @@ class FireFoxDriver : public FirefoxProcess ,public INetworkDelegate {
 #if ASYNC_API
 	Endpoint  m_asyncEndpoint;
 #endif
+
+	
+	void	_prepareToSend(const JSONPacket& packet);
 
     public:
     
@@ -119,6 +148,8 @@ class FireFoxDriver : public FirefoxProcess ,public INetworkDelegate {
     */
     void    NavigateTo(const Tab& inTab, const std::string& inUrl);
     
+	void	NavigateTo(const Tab& inTab, const std::string& inUrl, function<void(const JSONPacket&)> && inCB);
+	
 
     /*
         @function   CloseTab
@@ -144,21 +175,25 @@ class FireFoxDriver : public FirefoxProcess ,public INetworkDelegate {
 
 	/*
 		@function  AttachTab
+		@info	   attach to Tab and subscribe to events; 
+				   this function is asynchronous
 		@params
 				-inTab tab to attach
 				-inCB function to execute for every event comming
+		
 		@return void
 
 	*/
 
-	void	AttachTab(const Tab& inTab, function<void(const string&)>&& inCB);
+	void	AttachTab(const Tab& inTab, function<void(const JSONPacket&)>&& inCB);
 
 	//from INetworkDelegate
 
 	asio::io_context& GetIOService() override;
 
 	void OnPacketRecevied(const JSONPacket&) override;
-    
+
+    void OnPacketSend(const JSONPacket&) override;
 
 
 	/*

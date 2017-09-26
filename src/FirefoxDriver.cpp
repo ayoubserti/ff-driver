@@ -59,6 +59,7 @@ void FireFoxDriver::GetTabList(function<void(const vector<Tab>&)>&& inCB)
 
 	shared_ptr<Request> req(new Request("root", jsonPacket, completion));
 	m_pendingRequests.push_back(req);
+	_prepareToSend("to");
 }
 
 void FireFoxDriver::OpenNewTab(const string& url, CallBackType inCB)
@@ -230,10 +231,12 @@ void FireFoxDriver::AttachTab(const Tab& inTab, function<void(const JSONPacket&)
 	string msg = "{\"to\":\":actor\", \"type\": \"attach\"}";
 	msg = std::regex_replace(msg, regex(":actor"), inTab.GetActor());
 	JSONPacket request(msg);
-	
+
 	shared_ptr<Request> req(new Request(inTab.GetActor(), request, std::move(inCB)));
 
 	m_pendingRequests.push_back(req);
+	_prepareToSend(inTab.GetActor());
+
 }
 
 asio::io_context & FireFoxDriver::GetIOService()

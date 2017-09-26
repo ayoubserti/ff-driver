@@ -21,7 +21,7 @@ int main(int argc, char** argv)
 	args::Flag evaluateJS(flagGroup, "evaluateJS", "Evaluate Javascript code on Tab", { "eval" });
 	args::ValueFlag<string> file(flagGroup, "file to evaluate", "File to evaluate", { "file" });
 	args::ValueFlag<string> text(flagGroup, "text to evaluate", "text to evaluate", { "text" });
-
+	args::ValueFlag<int>   attach(flagGroup, "Attach to Tab", "subscribe to tab event", { "attach" });
 
 
 	try
@@ -69,7 +69,7 @@ int main(int argc, char** argv)
 
 		
 	}
-	if (newTab)
+	else if (newTab)
 	{
 		ffDriver.OnConnect([&]() {
 			ffDriver.OpenNewTab(args::get(newTab), [&](const JSONPacket&) { ffDriver.Stop(); });
@@ -77,7 +77,7 @@ int main(int argc, char** argv)
 		});
 		ffDriver.Run();
 	}
-	if (closeTab)
+	else if (closeTab)
 	{
 		int tabToCloseId = args::get(closeTab);
 		ffDriver.OnConnect([&]() {
@@ -93,7 +93,7 @@ int main(int argc, char** argv)
 		ffDriver.Run();
 		
 	}
-	if (navigateTab)
+	else if (navigateTab)
 	{
 		ffDriver.OnConnect([&]() {
 			if (tabId && navigateUrl)
@@ -124,7 +124,7 @@ int main(int argc, char** argv)
 		ffDriver.Run();
 	}
 
-	if (reloadTab)
+	else if (reloadTab)
 	{
 		ffDriver.OnConnect([&]() {
 			int TabId = args::get(reloadTab);
@@ -142,7 +142,7 @@ int main(int argc, char** argv)
 		
 	}
 	
-	if (evaluateJS)
+	else if (evaluateJS)
 	{
 		ffDriver.OnConnect([&]() {
 			int TabId = args::get(tabId);
@@ -187,6 +187,22 @@ int main(int argc, char** argv)
 
 		ffDriver.Run();
 		
+	}
+	else if (attach)
+	{
+		int tabId = args::get(attach);
+		ffDriver.OnConnect([&]() {
+			ffDriver.GetTabList([&](const vector<Tab>& allTabs) {
+				if (allTabs.size() >= tabId && tabId > 0) {
+					
+					ffDriver.AttachTab(allTabs[tabId - 1], [&](const JSONPacket& p) {
+						cout << p.GetMsg() << endl;
+					});
+				}
+			});
+		});
+
+		ffDriver.Run();
 	}
 
     return 0;

@@ -18,7 +18,7 @@ int main(int argc, char** argv)
 	//TODO: cleanup when finish with branch
 	FireFoxDriver ffDriver;
 
-	Tab tabToAttach;
+	Tab tabToAttach, tabTo;
 	
 	auto completion= [&]() {
 
@@ -37,9 +37,10 @@ int main(int argc, char** argv)
 				++i;
 			}
 			tabToAttach = tabs[1];
+			tabTo = tabs[0];
 
 
-			ffDriver.NavigateTo(tabs[0], "http://www.google.com",[ & ](const JSONPacket& packet) {
+			ffDriver.NavigateTo(tabTo, "http://www.google.com",[ & ](const JSONPacket& packet) {
 
 				
 
@@ -49,7 +50,12 @@ int main(int argc, char** argv)
 
 				});
 
+				ffDriver.EvaluateJS(tabTo, "console.log(\"from debugger\");", [](const JSONPacket& packet) {
+					cout << packet.GetMsg() << endl;
+				});
 			});
+
+			
 
 			
 		});

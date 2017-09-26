@@ -141,6 +141,7 @@ void FireFoxDriver::CloseTab(const Tab & inTab, CallBackType inCB)
 
 	JSONPacket json(buffer.GetString());
 	shared_ptr<Request> req(new Request(inTab.GetActor(), json, std::move(inCB)));
+	m_pendingRequests.push_back(req);
 	_prepareToSend(inTab.GetActor());
 }
 
@@ -148,13 +149,18 @@ void FireFoxDriver::ReloadTab(const Tab & inTab, CallBackType inCB)
 {
 	string msg = "{\"to\":\":actor\", \"type\": \"reload\"}";
 	msg = std::regex_replace(msg, regex(":actor"), inTab.GetActor());
+	JSONPacket json(msg);
+
+	shared_ptr<Request>  req(new Request(inTab.GetActor(), json, std::move(inCB)));
+	m_pendingRequests.push_back(req);
+	_prepareToSend(inTab.GetActor());
 	
 }
 
 
 void FireFoxDriver::EvaluateJS(const Tab& inTab, const string& inScript, CallBackType inCB)
 {
-	/*rapidjson::Document doc;
+	rapidjson::Document doc;
 	doc.SetObject();
 	doc.AddMember("to", inTab.GetConsoleActor(), doc.GetAllocator());
 	doc.AddMember("type", "evaluateJS", doc.GetAllocator());
@@ -167,63 +173,14 @@ void FireFoxDriver::EvaluateJS(const Tab& inTab, const string& inScript, CallBac
 		rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 		doc.Accept(writer);
 
-		reply = _SendRequest(buffer.GetString());
+
+		JSONPacket json(buffer.GetString());
+		shared_ptr<Request> req(new Request(inTab.GetConsoleActor(), json, std::move(inCB)));
+		m_pendingRequests.push_back(req);
+		_prepareToSend(inTab.GetConsoleActor());
 
 	}
 	
-	//parse result
-	doc.Parse(reply.GetMsg());
-	string result = "";
-	rapidjson::Value valOfdoc = doc.GetObject();
-
-	
-#if 0
-	
-
-	if (valOfdoc["result"].IsObject())
-	{
-		//object 
-		auto res = valOfdoc["result"].GetObject();
-		string res_type = res["type"].GetString();
-		if (string("undefined") == res_type )
-		{
-			return "undefined";
-		}
-		else if (  string("object") == res_type)
-		{
-			//create object and ownproperties values
-			auto obj = res["preview"]["ownProperties"].GetObject();
-			rapidjson::Document res_doc;
-			res_doc.SetObject();
-			auto it = obj.MemberBegin(); auto end = obj.MemberEnd();
-			for (; it != end; ++it)
-			{
-				res_doc.AddMember(it->name, it->value.GetObject()["value"], res_doc.GetAllocator());
-			}
-
-			rapidjson::StringBuffer buffer;
-			rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-			res_doc.Accept(writer);
-
-			return buffer.GetString();
-		}
-	}
-	else
-	{
-
-	}
-#endif
-
-	rapidjson::StringBuffer buffer;
-	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-	
-	valOfdoc["result"].Accept(writer);
-
-	return buffer.GetString();
-	*/
-
-
-
 }
 
 void FireFoxDriver::AttachTab(const Tab& inTab, function<void(const JSONPacket&)>&& inCB)

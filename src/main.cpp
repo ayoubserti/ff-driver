@@ -4,69 +4,9 @@
 #include <fstream>
 
 
-#define _TEST 1
-
-
-
-
-
 int main(int argc, char** argv)
 {
-#if _TEST
 
-	//for testing purpose
-	//TODO: cleanup when finish with branch
-	FireFoxDriver ffDriver;
-
-	Tab tabToAttach, tabTo;
-	
-	auto completion= [&]() {
-
-		ffDriver.GetTabList([&](const vector<Tab>& tabs) {
-			int i = 1;
-
-			cout << "root actor" << endl;
-
-			for (auto& it : tabs)
-			{
-
-				cout << "Tab #" << i << ": " << endl;
-				cout << "	" << "title: " << it.GetTitle() << endl;
-				cout << "	" << "URL: " << it.GetURL() << endl;
-				cout << "	" << "actor: " << it.GetActor() << endl;
-				++i;
-			}
-			tabToAttach = tabs[1];
-			tabTo = tabs[0];
-
-
-			ffDriver.NavigateTo(tabTo, "http://www.google.com",[ & ](const JSONPacket& packet) {
-
-				
-
-				ffDriver.AttachTab(tabToAttach, [](const JSONPacket& packet) {
-
-					cout << "attach event " << endl;
-
-				});
-
-				ffDriver.EvaluateJS(tabTo, "console.log(\"from debugger\");", [](const JSONPacket& packet) {
-					cout << packet.GetMsg() << endl;
-				});
-			});
-
-			
-
-			
-		});
-
-		
-	};
-	ffDriver.OnConnect(completion);
-	ffDriver.Run();
-	return 0;
-
-#else
 	//parse command line args
 	args::ArgumentParser parser("FireFox Driver CLI");
 	args::HelpFlag help(parser, "help", "Display this help menu", { 'h', "help" });
@@ -108,97 +48,147 @@ int main(int argc, char** argv)
 	FireFoxDriver ffDriver;
 	if (listTab)
 	{
-		auto tabList = ffDriver.GetTabList();
-		int i=1;
-		for (auto& it : tabList)
-		{
-			
-			cout << "Tab #" << i << ": " << endl;
-			cout << "	" << "title: " << it.GetTitle() << endl;
-			cout << "	" << "URL: " << it.GetURL() << endl;
-			cout << "	" << "actor" << it.GetActor() << endl;
-			++i;
-		}
+		
+		ffDriver.OnConnect([&]() {
+			ffDriver.GetTabList([&](const vector<Tab>& tabList) {
+				int i = 1;
+				for (auto& it : tabList)
+				{
+
+					cout << "Tab #" << i << ": " << endl;
+					cout << "	" << "title: " << it.GetTitle() << endl;
+					cout << "	" << "URL: " << it.GetURL() << endl;
+					cout << "	" << "actor" << it.GetActor() << endl;
+					++i;
+				}
+				ffDriver.Stop();
+			});
+		});
+
+		ffDriver.Run();
+
+		
 	}
 	if (newTab)
 	{
-		ffDriver.OpenNewTab(args::get(newTab));
+		ffDriver.OnConnect([&]() {
+			ffDriver.OpenNewTab(args::get(newTab), [&](const JSONPacket&) { ffDriver.Stop(); });
+
+		});
+		ffDriver.Run();
 	}
 	if (closeTab)
 	{
 		int tabToCloseId = args::get(closeTab);
-		auto allTabs = ffDriver.GetTabList();
-		if (allTabs.size() >= tabToCloseId && tabToCloseId >0) {
-			ffDriver.CloseTab(allTabs[tabToCloseId - 1]);
-		}
+		ffDriver.OnConnect([&]() {
+			ffDriver.GetTabList([&ffDriver, tabToCloseId](const vector<Tab>& allTabs) {
+				if (allTabs.size() >= tabToCloseId && tabToCloseId > 0) {
+					ffDriver.CloseTab(allTabs[tabToCloseId - 1], [&](const JSONPacket&) {
+						ffDriver.Stop();
+					});
+				}
+			});
+		});
+
+		ffDriver.Run();
+		
 	}
 	if (navigateTab)
 	{
-		if (tabId && navigateUrl)
-		{
-			auto allTabs = ffDriver.GetTabList();
-			int tabIDvalue = args::get(tabId);
-			if (allTabs.size() >= tabIDvalue && tabIDvalue >0) {
-				
+		ffDriver.OnConnect([&]() {
+			if (tabId && navigateUrl)
+			{
+				int tabIDvalue = args::get(tabId);
 				string url = args::get(navigateUrl);
-				ffDriver.NavigateTo(allTabs[tabIDvalue - 1], url);
-			}
+				ffDriver.GetTabList([&ffDriver, tabIDvalue, url](const vector<Tab>& allTabs) {
+					if (allTabs.size() >= tabIDvalue && tabIDvalue > 0) {
 
-		}
-		else if (!tabId)
-		{
-			cerr << "tab id forgotten" << endl;
-		}
-		else if (!navigateUrl)
-		{
-			cerr << "url forgotten" << endl;
-		}
+						ffDriver.NavigateTo(allTabs[tabIDvalue - 1], url, [&](const JSONPacket&) {
+							ffDriver.Stop();
+						});
+					}
+				});
+
+
+			}
+			else if (!tabId)
+			{
+				cerr << "tab id forgotten" << endl;
+			}
+			else if (!navigateUrl)
+			{
+				cerr << "url forgotten" << endl;
+			}
+		});
+
+		ffDriver.Run();
 	}
 
 	if (reloadTab)
 	{
-		auto allTabs = ffDriver.GetTabList();
-		int TabId = args::get(reloadTab);
-		if (allTabs.size() >= TabId && TabId >0) {
+		ffDriver.OnConnect([&]() {
+			int TabId = args::get(reloadTab);
 
-			ffDriver.ReloadTab(allTabs[TabId-1]);
-		}
+			ffDriver.GetTabList([&ffDriver, TabId](const vector<Tab>& allTabs) {
+				if (allTabs.size() >= TabId && TabId > 0) {
+					ffDriver.ReloadTab(allTabs[TabId - 1], [&](const JSONPacket&) {
+						ffDriver.Stop();
+					});
+				}
+			});
+		});
+
+		ffDriver.Run();
+		
 	}
 	
 	if (evaluateJS)
 	{
-		auto allTabs = ffDriver.GetTabList();
-		int TabId = args::get(tabId);
-		string jscode = "";
-		if (file)
-		{
-			std::fstream fileScript;
-			fileScript.open(args::get(file), std::ios_base::in);
-			if (!fileScript.is_open()) {
-				cerr << "Can't open file " << args::get(file) << endl;
-				return 2;
-			}
-			std::string contentScript((std::istreambuf_iterator<char>(fileScript)),
-				(std::istreambuf_iterator<char>()));
-			jscode = contentScript;
+		ffDriver.OnConnect([&]() {
+			int TabId = args::get(tabId);
 
-		}
-		else if (text)
-		{
-			jscode = args::get(text);
-		}
-		else
-		{
-			cerr << "You must use --file or --text with --eval command" << endl;
-			return 1;
-		}
+			ffDriver.GetTabList([&](const vector<Tab>& allTabs) {
+				string jscode = "";
+				if (file)
+				{
+					std::fstream fileScript;
+					fileScript.open(args::get(file), std::ios_base::in);
+					if (!fileScript.is_open()) {
+						cerr << "Can't open file " << args::get(file) << endl;
+						ffDriver.Stop();
+						return;
+					}
+					std::string contentScript((std::istreambuf_iterator<char>(fileScript)),
+						(std::istreambuf_iterator<char>()));
+					jscode = contentScript;
 
-		if (allTabs.size() >= TabId && TabId >0) {
+				}
+				else if (text)
+				{
+					jscode = args::get(text);
+				}
+				else
+				{
+					cerr << "You must use --file or --text with --eval command" << endl;
+					ffDriver.Stop();
+					return;
+				}
 
-			cout << ffDriver.EvaluateJS(allTabs[TabId - 1],jscode) << endl;
-		}
+				if (allTabs.size() >= TabId && TabId >0) {
+
+					ffDriver.EvaluateJS(allTabs[TabId - 1], jscode, [&](const JSONPacket& p) {
+						cout << p.GetMsg() << endl;
+						ffDriver.Stop();
+					});
+				}
+				
+			});
+		});
+
+		ffDriver.Run();
+		
 	}
+
     return 0;
-#endif
 }
 

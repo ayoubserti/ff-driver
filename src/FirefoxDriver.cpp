@@ -64,35 +64,36 @@ void FireFoxDriver::GetTabList(function<void(const vector<Tab>&)>&& inCB)
 
 void FireFoxDriver::OpenNewTab(const string& url, CallBackType inCB)
 {
-	/*Tab tab;
-	auto tabs = GetTabList();
-	if (tabs.size())
-	{
-		//doesn't harm to check;) 
-		
-		rapidjson::Document doc;
-		doc.SetObject();
-		doc.AddMember("to", tabs[0].GetConsoleActor(), doc.GetAllocator());
-		doc.AddMember("type", "evaluateJS", doc.GetAllocator());
-		string scriptText = "window.open('";
-		scriptText += url;
-		scriptText += "')";
-		doc.AddMember("text", scriptText,doc.GetAllocator());
-
-		//serialiaze msg
-		rapidjson::StringBuffer buffer;
-		rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-		doc.Accept(writer);
-		
-		JSONPacket reply = _SendRequest(buffer.GetString());
-		
+	//I decide to trop OpenNewTab api because isn't natively supported and the current implementation may have side effect
 	
-		tab.m_TabURL = "";
+	/*auto completion = [&]( const vector<Tab>& tabs) {
 
-		
-	}
-	return tab;
-	*/
+		if (tabs.size())
+		{
+			rapidjson::Document doc;
+			doc.SetObject();
+			doc.AddMember("to", tabs[0].GetConsoleActor(), doc.GetAllocator());
+			doc.AddMember("type", "evaluateJS", doc.GetAllocator());
+			string scriptText = "window.open('";
+			scriptText += url;
+			scriptText += "')";
+			doc.AddMember("text", scriptText, doc.GetAllocator());
+
+			//serialiaze msg
+			rapidjson::StringBuffer buffer;
+			rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+			doc.Accept(writer);
+			JSONPacket json(buffer.GetString());
+			string tabActor = tabs[0].GetConsoleActor();
+			shared_ptr<Request> req(new Request(tabActor, json, std::move(inCB)));
+			m_pendingRequests.push_back(req);
+			_prepareToSend(tabActor);
+		}
+	};
+
+
+	GetTabList(completion);*/
+	
 }
 
 void FireFoxDriver::NavigateTo(const Tab & inTab, const std::string & inUrl, function<void(const JSONPacket&)>&& inCB)

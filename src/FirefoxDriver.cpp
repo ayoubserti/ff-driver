@@ -59,7 +59,7 @@ void FireFoxDriver::GetTabList(function<void(const vector<Tab>&)>&& inCB)
 
 	shared_ptr<Request> req(new Request("root", jsonPacket, completion));
 	m_pendingRequests.push_back(req);
-	_prepareToSend("to");
+	_prepareToSend("root");
 }
 
 void FireFoxDriver::OpenNewTab(const string& url, CallBackType inCB)
@@ -116,7 +116,7 @@ void FireFoxDriver::NavigateTo(const Tab & inTab, const std::string & inUrl, fun
 	string tabActor = inTab.GetActor();
 	shared_ptr<Request> req(new Request(tabActor, json, std::move(inCB)));
 	m_pendingRequests.push_back(req);
-	
+	_prepareToSend(tabActor);
 	
 }
 
@@ -141,7 +141,7 @@ void FireFoxDriver::CloseTab(const Tab & inTab, CallBackType inCB)
 
 	JSONPacket json(buffer.GetString());
 	shared_ptr<Request> req(new Request(inTab.GetActor(), json, std::move(inCB)));
-
+	_prepareToSend(inTab.GetActor());
 }
 
 void FireFoxDriver::ReloadTab(const Tab & inTab, CallBackType inCB)
@@ -246,8 +246,7 @@ asio::io_context & FireFoxDriver::GetIOService()
 
 void FireFoxDriver::OnPacketRecevied(const JSONPacket &packet)
 {
-	cout << packet.GetMsg() << endl;
-
+	
 	rapidjson::Document document;
 	if (document.Parse(packet.GetMsg()).HasParseError())
 	{
@@ -266,11 +265,12 @@ void FireFoxDriver::OnPacketRecevied(const JSONPacket &packet)
 		}
 		else
 		{
-			m_activeRequests[actor]->m_callback(packet);
+			if( m_activeRequests.find(actor) != m_activeRequests.end())
+				m_activeRequests[actor]->m_callback(packet);
 			
-			
+		//	_prepareToSend(actor);
 		}
-		_prepareToSend(actor);
+		
 		
 	}
 
@@ -285,15 +285,17 @@ void FireFoxDriver::_prepareToSend(const string& actor)
 	
 	for (auto& it : m_pendingRequests)
 	{
-		if (m_activeRequests.find(it->m_to) != m_activeRequests.end()) {
+		if (m_activeRequests.find(it->m_to) == m_activeRequests.end()) {
 			elemToShrink.push_back(it->m_to);
+			m_asyncEndpoint.Send(it->m_packet);
+			m_activeRequests[it->m_to] = it;
 			
 		}
 		else
 		{
-			m_asyncEndpoint.Send(it->m_packet);
-			m_activeRequests[it->m_to] = it;
+			m_activeRequests.erase(it->m_to);
 		}
+		
 		
 	}
 

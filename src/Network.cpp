@@ -78,5 +78,13 @@ void Endpoint::send_handler(const std::error_code &ec, std::size_t)
 	if (!ec)
 	{
 		m_messagesToSend.pop();
+		if (m_messagesToSend.size() > 0)
+		{
+			m_messageToSend = m_messagesToSend.front();
+			
+			
+			m_socket.async_write_some(asio::buffer(m_messageToSend), std::bind(&Endpoint::send_handler, this, placeholders::_1, placeholders::_2));
+		}
+		
 	}
 }

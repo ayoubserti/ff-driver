@@ -1,4 +1,12 @@
+#define RAPIDJSON_HAS_STDSTRING 1
 #include "FirefoxDriver.h"
+#if _WIN32
+#undef GetObject
+#endif
+#include "rapidjson/document.h"
+#include "rapidjson/rapidjson.h"
+#include "rapidjson/stringbuffer.h"
+#include "rapidjson/writer.h"
 #include "args.hxx"
 #include <iostream>
 #include <fstream>
@@ -27,6 +35,8 @@ int main(int argc, char** argv)
 
 	args::ValueFlag<string> optArgs(optionGroup, "optional argument to be passed to FF", "optional argument to be passed to FF", { "option" });
 
+	args::Flag	 demo(flagGroup, "demo", "demo", { "demo" });
+
 
 	try
 	{
@@ -48,8 +58,61 @@ int main(int argc, char** argv)
 		; //TBD
 	}
 	
+
+
+
+	if (demo)
+	{
+		//demo option
+		FireFoxDriver ffDriver("-url http://wikipedia.com");
+		Tab tab;
+		ffDriver.OnConnect([&]() {
+			
+			ffDriver.GetTabList([&](const vector<Tab>& tabList) {
+				
+				tab = *tabList.rbegin();
+				ffDriver.ReloadTab(tab,  [&](const JSONPacket&) {  //tricky action to catch tab navigated events
+					ffDriver.AttachTab(tab, [&](const JSONPacket& packet) {
+
+						rapidjson::Document document;
+						if (document.Parse(packet.GetMsg()).HasParseError())
+						{
+							std::cerr << "Error while Parsing recieved JSON:  " << document.GetParseError() << std::endl;
+							ffDriver.Stop();
+							return;
+						}
+						else
+						{
+							auto obj = document.GetObject();
+							if (obj.HasMember("type") && obj.HasMember("state"))
+							{
+								if ((string(obj["type"].GetString()) == "tabNavigated") && (string(obj["state"].GetString()) == "stop"))
+								{
+									ffDriver.EvaluateJS(tab, "alert('hello')", [&](const JSONPacket&) {
+										ffDriver.Stop();
+									});
+								}
+							}
+						}
+
+					});
+				});
+				
+			});
+		});
+
+		ffDriver.Run();
+		return 0;
+	}
+
+
+
 	string options = args::get(optArgs);
 	FireFoxDriver ffDriver(options);
+
+
+	
+
 	if (listTab)
 	{
 		

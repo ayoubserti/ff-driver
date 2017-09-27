@@ -226,7 +226,7 @@ void FireFoxDriver::OnPacketRecevied(const JSONPacket &packet)
 			if( m_activeRequests.find(actor) != m_activeRequests.end())
 				m_activeRequests[actor]->m_callback(packet);
 			
-		//	_prepareToSend(actor);
+			_prepareToSend(actor);
 		}
 		
 		

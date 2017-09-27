@@ -109,9 +109,11 @@ public:
     
     /*
         @ctor
+		@params
+				optArgs  optional argument to be passed to FireFox
         @info Create new Firefox process
     */
-    FireFoxDriver();
+	FireFoxDriver(const string& optArgs = "");
     
     /*
         @function GetTabList

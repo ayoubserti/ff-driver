@@ -17,8 +17,8 @@ using namespace asio::ip;
 vector<string> FireFoxDriver::s_unsolicitedEvents = {"tabListChanged"};
 
 
-FireFoxDriver::FireFoxDriver() :
-	FirefoxProcess()
+FireFoxDriver::FireFoxDriver(const string& optArgs ) :
+	FirefoxProcess(optArgs)
 	,m_asyncEndpoint(*this,"127.0.0.1",6000)
 {	
 	m_asyncEndpoint.Start();

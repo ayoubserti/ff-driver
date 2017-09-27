@@ -23,6 +23,10 @@ int main(int argc, char** argv)
 	args::ValueFlag<string> text(flagGroup, "text to evaluate", "text to evaluate", { "text" });
 	args::ValueFlag<int>   attach(flagGroup, "Attach to Tab", "subscribe to tab event", { "attach" });
 
+	args::Group optionGroup(parser);
+
+	args::ValueFlag<string> optArgs(optionGroup, "optional argument to be passed to FF", "optional argument to be passed to FF", { "option" });
+
 
 	try
 	{
@@ -44,8 +48,8 @@ int main(int argc, char** argv)
 		; //TBD
 	}
 	
-	
-	FireFoxDriver ffDriver;
+	string options = args::get(optArgs);
+	FireFoxDriver ffDriver(options);
 	if (listTab)
 	{
 		

@@ -70,7 +70,7 @@ static std::string GetFireFoxInstallationPath()
 
 
 
-FirefoxProcess::FirefoxProcess()
+FirefoxProcess::FirefoxProcess(const std::string& optArgs)
 {
 
 
@@ -85,6 +85,11 @@ FirefoxProcess::FirefoxProcess()
 	startupInfo.cb = sizeof startupInfo; 
 	std::string cmd = exePath;
 	cmd += " -start-debugger-server 6000";
+	if (!optArgs.empty())
+	{
+		cmd += " ";
+		cmd += optArgs;
+	}
 	BOOL bCreated = CreateProcess(NULL,(LPSTR)cmd.c_str(), NULL, NULL, TRUE, NORMAL_PRIORITY_CLASS, NULL, NULL, &startupInfo, &m_processInfo);
 	if (bCreated) {
 		//successfully created; wait to start

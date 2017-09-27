@@ -6,13 +6,14 @@
 #define __PROCESS_LAUNCHR_H__
 
 #include <windows.h>
+#include <string>
 
 class FirefoxProcess
 {
     PROCESS_INFORMATION  m_processInfo;
 	void Close();
     public: 
-    FirefoxProcess();
+    FirefoxProcess(const std::string& optArgs = "");
 	virtual ~FirefoxProcess();
     
 };

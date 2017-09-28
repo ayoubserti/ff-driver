@@ -128,24 +128,7 @@ int main(int argc, char** argv)
 	{
 		//demo option
 		FireFoxDriver ffDriver("-url http://wikipedia.com");
-		/*Tab tab;
-		ffDriver.OnConnect([&]() {
-			
-			ffDriver.GetTabList([&](const vector<Tab>& tabList) {
-				
-				tab = *tabList.rbegin();  //last tab
-				ffDriver.ReloadTab(tab,  [&](const JSONPacket&) {  //tricky action to catch tab navigated events
-					ffDriver.AttachTab(tab, [&](const JSONPacket& packet) {
-
-						
-
-					});
-				});
-				
-			});
-		});
-		*/
-
+	
 		DemoHandler demoHandler(&ffDriver);
 		ffDriver.Run();
 		return 0;

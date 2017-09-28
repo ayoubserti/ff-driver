@@ -11,6 +11,69 @@
 #include <iostream>
 #include <fstream>
 
+class DemoHandler
+{
+
+	FireFoxDriver* m_driver;
+
+	Tab				m_tab;
+
+	void  OnTabListed(const vector<Tab>& tabs)
+	{
+		m_tab = *tabs.rbegin();
+		m_driver->ReloadTab(m_tab, std::move(std::bind(&DemoHandler::OnTabReloaded, this, placeholders::_1)));
+	}
+
+	void  OnTabReloaded(const JSONPacket& p)
+	{
+		m_driver->AttachTab(m_tab, std::bind(&DemoHandler::OnTabAttached, this, placeholders::_1));
+	}
+
+	void  OnTabAttached(const JSONPacket& packet)
+	{
+		rapidjson::Document document;
+		if (document.Parse(packet.GetMsg()).HasParseError())
+		{
+			std::cerr << "Error while Parsing recieved JSON:  " << document.GetParseError() << std::endl;
+			m_driver->Stop();
+			return;
+		}
+		else
+		{
+			auto obj = document.GetObject();
+			if (obj.HasMember("type") && obj.HasMember("state"))
+			{
+				if ((string(obj["type"].GetString()) == "tabNavigated") && (string(obj["state"].GetString()) == "stop"))
+				{
+					m_driver->EvaluateJS(m_tab, "alert('hello')", std::bind(&DemoHandler::OnAlert,this, placeholders::_1));
+				}
+			}
+		}
+	}
+
+
+	void OnAlert(const JSONPacket& packet)
+	{
+		//alert was received
+		m_driver->Stop();
+	}
+
+	void HandleOnConnect() {
+
+		m_driver->GetTabList(std::bind(&DemoHandler::OnTabListed, this, placeholders::_1));
+	}
+
+public:
+
+	DemoHandler( FireFoxDriver* inDriver)
+		:m_driver(inDriver)
+	{
+		m_driver->OnConnect(std::bind(&DemoHandler::HandleOnConnect,this));
+	}
+
+
+
+};
 
 int main(int argc, char** argv)
 {
@@ -65,42 +128,25 @@ int main(int argc, char** argv)
 	{
 		//demo option
 		FireFoxDriver ffDriver("-url http://wikipedia.com");
-		Tab tab;
+		/*Tab tab;
 		ffDriver.OnConnect([&]() {
 			
 			ffDriver.GetTabList([&](const vector<Tab>& tabList) {
 				
-				tab = *tabList.rbegin();
+				tab = *tabList.rbegin();  //last tab
 				ffDriver.ReloadTab(tab,  [&](const JSONPacket&) {  //tricky action to catch tab navigated events
 					ffDriver.AttachTab(tab, [&](const JSONPacket& packet) {
 
-						rapidjson::Document document;
-						if (document.Parse(packet.GetMsg()).HasParseError())
-						{
-							std::cerr << "Error while Parsing recieved JSON:  " << document.GetParseError() << std::endl;
-							ffDriver.Stop();
-							return;
-						}
-						else
-						{
-							auto obj = document.GetObject();
-							if (obj.HasMember("type") && obj.HasMember("state"))
-							{
-								if ((string(obj["type"].GetString()) == "tabNavigated") && (string(obj["state"].GetString()) == "stop"))
-								{
-									ffDriver.EvaluateJS(tab, "alert('hello')", [&](const JSONPacket&) {
-										ffDriver.Stop();
-									});
-								}
-							}
-						}
+						
 
 					});
 				});
 				
 			});
 		});
+		*/
 
+		DemoHandler demoHandler(&ffDriver);
 		ffDriver.Run();
 		return 0;
 	}

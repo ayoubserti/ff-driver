@@ -5,107 +5,48 @@
 #ifndef __FIREFOXDRIVER_H__
 #define __FIREFOXDRIVER_H__
 
-#ifdef _WIN32
-#define  _WIN32_WINNT  0x0601
-#define  ASIO_DISABLE_IOCP 1
-#endif
-#define  ASIO_STANDALONE 1
-#include "asio.hpp"
+#include "config.h"
 
-#include "Network.h"
+#include <functional>
 #include <string>
 #include <vector>
 
-#include "ProcessLauncher.h"
-#include "JSONPacket.h"
-#include <map>
-
-#include <functional>
-#include <memory>
-
-#define ASYNC_API 1
-using namespace std;
 
 //forward declation
+class Tab_Impl;
+class Request;
+class FireFoxDriver_Impl;
+class JSONPacket;
 
-class FireFoxDriver;
-class Tab{
 
-    string m_TabURL;
-    string m_title;
-    string m_tabActor;
-	string m_consoleActor;
-	friend class FireFoxDriver;
 
+class PUBLIC_API Tab {
+
+	Tab_Impl*    m_impl;
+    
     public:
+	
+	Tab(Tab_Impl* impl):m_impl(impl){}
 
-
-    string GetURL() const;
-    string GetTitle() const;
-    string GetActor() const;
-	string GetConsoleActor() const;
+    virtual const std::string& GetURL() const;
+    virtual const std::string& GetTitle() const;
+    virtual const std::string& GetActor() const;
+	virtual const std::string& GetConsoleActor() const;
 };
 
 
-struct Request {
-
-private:
-
-	Request();
-public:
-
-	JSONPacket m_packet{ "" };
-	function<void(const JSONPacket&) > m_callback;
-	string		m_to{ "" };
-
-	Request(const string& to,const JSONPacket& packet, function<void(const JSONPacket&) >&& cb)
-	{
-		m_to = to;
-		m_packet = packet;
-		m_callback = cb;
-	}
-
-};
 
 
-class FireFoxDriver : public FirefoxProcess ,public INetworkDelegate {
+class PUBLIC_API FireFoxDriver  {
 
-    
-    FireFoxDriver(const FireFoxDriver& ) = delete;
-    FireFoxDriver( FireFoxDriver&& ) = delete;
-    
-	asio::io_service	m_ioservice;
+	FireFoxDriver_Impl* m_impl;
 
-	
-	static vector<string>  s_unsolicitedEvents;
-
-	typedef function<void(const JSONPacket&)>&&  CallBackType;
-	
-	/*
-		while we are in asynchronous mode and Debugger Server doesn't tag request to Actors
-		every Actor can only have one active Request
-
-	*/
-	vector<shared_ptr<Request>> m_pendingRequests;
-
-	map<string, shared_ptr<Request> >   m_activeRequests;
-
-	
-	function<void(void)>  m_onConnectHandler;
-	
-	enum  DriverState {
-		eStop,
-		eWaitingHandShake,
-		eReady
-	};
-
-	DriverState m_status;
-
-	Endpoint  m_asyncEndpoint;
-	
-	void	_prepareToSend(const string& packet);
+	FireFoxDriver(FireFoxDriver_Impl* impl) : m_impl(impl) {}
 
 public:
+	typedef std::function<void(const JSONPacket&)>&&  CallBackType;
+
+	static FireFoxDriver Create();
     
     /*
         @ctor
@@ -113,7 +54,7 @@ public:
 				optArgs  optional argument to be passed to FireFox
         @info Create new Firefox process
     */
-	FireFoxDriver(const string& optArgs = "");
+	FireFoxDriver(const std::string& optArgs = "");
     
     /*
         @function GetTabList
@@ -124,7 +65,7 @@ public:
     */
     
 
-	void GetTabList(function<void(const vector<Tab>&)>&&  inCB);
+	virtual void GetTabList(std::function<void(const std::vector<Tab>&)>&&  inCB);
     
     /*
         @function OpenNewTab
@@ -135,26 +76,26 @@ public:
         @warning   
     */
 
-    void     OpenNewTab(const string& url, CallBackType inCB);
+	virtual void     OpenNewTab(const std::string& url, CallBackType inCB);
 
 
     /*
         @function NavigateTo
     */
     
-	void	NavigateTo(const Tab& inTab, const std::string& inUrl, CallBackType && inCB);
+	virtual void	NavigateTo(const Tab& inTab, const std::string& inUrl, CallBackType  inCB);
 	
 
     /*
         @function   CloseTab
     */
-    void CloseTab(const Tab& inTab, CallBackType inCB);
+	virtual void CloseTab(const Tab& inTab, CallBackType inCB);
 
     /*
      @function      ReloadTab
     */
 
-    void ReloadTab(const Tab& inTab, CallBackType inCB);
+	virtual  void ReloadTab(const Tab& inTab, CallBackType inCB);
 
 	/*
 	@function EvaluteJS
@@ -167,7 +108,7 @@ public:
 			return result as text
 	*/
 
-	void EvaluateJS(const Tab& inTab, const string& inScript, CallBackType inCB);
+	virtual void EvaluateJS(const Tab& inTab, const std::string& inScript, CallBackType inCB);
 
 	/*
 		@function  AttachTab
@@ -181,21 +122,16 @@ public:
 
 	*/
 
-	void	AttachTab(const Tab& inTab, CallBackType inCB);
+	virtual void	AttachTab(const Tab& inTab, CallBackType inCB);
 
-	//from INetworkDelegate
-
-	asio::io_context& GetIOService() override;
-
-	void OnPacketRecevied(const JSONPacket&) override;
-
+	
     
 	/*
 		@function	Run
 		@info		run underlaying io_service for aynchronous operation
 					it should be the last line of code because it will block
 	*/
-	void Run();
+	virtual void Run();
 
 
 
@@ -203,7 +139,7 @@ public:
 		@function OnConnect
 		@info		install the callback function to be executed when The driver is connected to FF
 	*/
-	void OnConnect(function<void(void)>&&);
+	virtual void OnConnect(std::function<void(void)>&&);
 
 
 	/*
@@ -212,7 +148,7 @@ public:
 		@warning	doesn't close socket with FF 
 	*/
 
-	void Stop();
+	virtual void Stop();
 	
 
 };

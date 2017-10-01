@@ -1,6 +1,9 @@
-#define RAPIDJSON_HAS_STDSTRING 1
-#include "FirefoxDriver.h"
+
+#include "FireFoxDriver_Impl.h"
 #include "Tab_Impl.h"
+
+
+#define RAPIDJSON_HAS_STDSTRING 1
 #if _WIN32
 #undef GetObject
 #endif
@@ -8,12 +11,16 @@
 #include "rapidjson/rapidjson.h"
 #include "rapidjson/stringbuffer.h"
 #include "rapidjson/writer.h"
-#include "FireFoxDriver_Impl.h"
 
+
+
+
+#include <string>
 #include <iostream>
 #include <regex>
 
 using namespace asio::ip;
+using namespace std;
 
 
 class Request {
@@ -23,35 +30,30 @@ private:
 	Request();
 public:
 
-	JSONPacket_Impl m_packet{""};
+	JSONPacket_Impl m_packet{ "" };
 	function<void(const JSONPacket&) > m_callback;
-	string		m_to{ "" };
+	std::string		m_to{ "" };
 
-	Request(const string& to, const JSONPacket& packet, function<void(const JSONPacket&) >&& cb)
+	Request(const std::string& to, const JSONPacket& packet, function<void(const JSONPacket&) >&& cb)
 		:m_to(to),
 		m_packet(dynamic_cast<const JSONPacket_Impl&>(packet)),
 		m_callback(cb)
 	{
-		
+
 	}
 
 };
 
 
 
-FireFoxDriver FireFoxDriver::Create()
-{
-	return FireFoxDriver_Impl();
-}
-
-FireFoxDriver::FireFoxDriver(const string& optArgs ) :
+FireFoxDriver_Impl::FireFoxDriver_Impl(const std::string& optArgs) :
 	FirefoxProcess(optArgs)
-	,m_asyncEndpoint(*this,"127.0.0.1",6000)
-{	
+	, m_asyncEndpoint(*this, "127.0.0.1", 6000)
+{
 	m_asyncEndpoint.Start();
 	m_status = eWaitingHandShake;
 }
-void FireFoxDriver::GetTabList(function<void(const vector<Tab>&)>&& inCB)
+void FireFoxDriver_Impl::GetTabList(function<void(const vector<Tab>&)>&& inCB)
 {
 
 	JSONPacket_Impl jsonPacket("{ \"to\":\"root\", \"type\":\"listTabs\" }");
@@ -89,44 +91,44 @@ void FireFoxDriver::GetTabList(function<void(const vector<Tab>&)>&& inCB)
 	_prepareToSend("root");
 }
 
-void FireFoxDriver::OpenNewTab(const string& url, CallBackType inCB)
+void FireFoxDriver_Impl::OpenNewTab(const string& url, CallBackType inCB)
 {
 	//I decide to trop OpenNewTab api because isn't natively supported and the current implementation may have side effect
-	
+
 	/*auto completion = [&]( const vector<Tab>& tabs) {
 
-		if (tabs.size())
-		{
-			rapidjson::Document doc;
-			doc.SetObject();
-			doc.AddMember("to", tabs[0].GetConsoleActor(), doc.GetAllocator());
-			doc.AddMember("type", "evaluateJS", doc.GetAllocator());
-			string scriptText = "window.open('";
-			scriptText += url;
-			scriptText += "')";
-			doc.AddMember("text", scriptText, doc.GetAllocator());
+	if (tabs.size())
+	{
+	rapidjson::Document doc;
+	doc.SetObject();
+	doc.AddMember("to", tabs[0].GetConsoleActor(), doc.GetAllocator());
+	doc.AddMember("type", "evaluateJS", doc.GetAllocator());
+	string scriptText = "window.open('";
+	scriptText += url;
+	scriptText += "')";
+	doc.AddMember("text", scriptText, doc.GetAllocator());
 
-			//serialiaze msg
-			rapidjson::StringBuffer buffer;
-			rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-			doc.Accept(writer);
-			JSONPacket json(buffer.GetString());
-			string tabActor = tabs[0].GetConsoleActor();
-			shared_ptr<Request> req(new Request(tabActor, json, std::move(inCB)));
-			m_pendingRequests.push_back(req);
-			_prepareToSend(tabActor);
-		}
+	//serialiaze msg
+	rapidjson::StringBuffer buffer;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+	doc.Accept(writer);
+	JSONPacket json(buffer.GetString());
+	string tabActor = tabs[0].GetConsoleActor();
+	shared_ptr<Request> req(new Request(tabActor, json, std::move(inCB)));
+	m_pendingRequests.push_back(req);
+	_prepareToSend(tabActor);
+	}
 	};
 
 
 	GetTabList(completion);*/
-	
+
 }
 
-void FireFoxDriver::NavigateTo(const Tab & inTab, const std::string & inUrl, function<void(const JSONPacket&)>&& inCB)
+void FireFoxDriver_Impl::NavigateTo(const Tab & inTab, const std::string & inUrl, function<void(const JSONPacket&)>&& inCB)
 {
-	
-	
+
+
 	rapidjson::Document msg(rapidjson::kObjectType);
 
 	msg.SetObject();
@@ -145,10 +147,10 @@ void FireFoxDriver::NavigateTo(const Tab & inTab, const std::string & inUrl, fun
 	shared_ptr<Request> req(new Request(tabActor, json, std::move(inCB)));
 	m_pendingRequests.push_back(req);
 	_prepareToSend(tabActor);
-	
+
 }
 
-void FireFoxDriver::CloseTab(const Tab & inTab, CallBackType inCB)
+void FireFoxDriver_Impl::CloseTab(const Tab & inTab, CallBackType inCB)
 {
 	//as there is no Request msg to close a Tab; we evaluate 'window.close()'in the Tab
 	//this hack works only with tab open using a script
@@ -160,7 +162,7 @@ void FireFoxDriver::CloseTab(const Tab & inTab, CallBackType inCB)
 	msg.AddMember("type", "evaluateJS", msg.GetAllocator());
 
 	msg.AddMember("text", "window.close()", msg.GetAllocator());
-	
+
 
 	//serialiaze msg
 	rapidjson::StringBuffer buffer;
@@ -173,7 +175,7 @@ void FireFoxDriver::CloseTab(const Tab & inTab, CallBackType inCB)
 	_prepareToSend(inTab.GetActor());
 }
 
-void FireFoxDriver::ReloadTab(const Tab & inTab, CallBackType inCB)
+void FireFoxDriver_Impl::ReloadTab(const Tab & inTab, CallBackType inCB)
 {
 	string msg = "{\"to\":\":actor\", \"type\": \"reload\"}";
 	msg = std::regex_replace(msg, regex(":actor"), inTab.GetActor());
@@ -182,11 +184,11 @@ void FireFoxDriver::ReloadTab(const Tab & inTab, CallBackType inCB)
 	shared_ptr<Request>  req(new Request(inTab.GetActor(), json, std::move(inCB)));
 	m_pendingRequests.push_back(req);
 	_prepareToSend(inTab.GetActor());
-	
+
 }
 
 
-void FireFoxDriver::EvaluateJS(const Tab& inTab, const string& inScript, CallBackType inCB)
+void FireFoxDriver_Impl::EvaluateJS(const Tab& inTab, const string& inScript, CallBackType inCB)
 {
 	rapidjson::Document doc;
 	doc.SetObject();
@@ -208,10 +210,10 @@ void FireFoxDriver::EvaluateJS(const Tab& inTab, const string& inScript, CallBac
 		_prepareToSend(inTab.GetConsoleActor());
 
 	}
-	
+
 }
 
-void FireFoxDriver::AttachTab(const Tab& inTab, function<void(const JSONPacket&)>&& inCB)
+void FireFoxDriver_Impl::AttachTab(const Tab& inTab, function<void(const JSONPacket&)>&& inCB)
 {
 	string msg = "{\"to\":\":actor\", \"type\": \"attach\"}";
 	msg = std::regex_replace(msg, regex(":actor"), inTab.GetActor());
@@ -224,14 +226,14 @@ void FireFoxDriver::AttachTab(const Tab& inTab, function<void(const JSONPacket&)
 
 }
 
-asio::io_context & FireFoxDriver::GetIOService()
+asio::io_context & FireFoxDriver_Impl::GetIOService()
 {
 	return m_ioservice;
 }
 
-void FireFoxDriver::OnPacketRecevied(const JSONPacket &packet)
+void FireFoxDriver_Impl::OnPacketRecevied(const JSONPacket &packet)
 {
-	
+
 	rapidjson::Document document;
 	if (document.Parse(packet.GetMsg()).HasParseError())
 	{
@@ -241,8 +243,8 @@ void FireFoxDriver::OnPacketRecevied(const JSONPacket &packet)
 	{
 		auto obj = document.GetObject();
 		//check actor
-		string actor = obj["from"].GetString();
-		
+		std::string actor = obj["from"].GetString();
+
 		if (m_status == eWaitingHandShake)
 		{
 			m_status = eReady;
@@ -250,37 +252,37 @@ void FireFoxDriver::OnPacketRecevied(const JSONPacket &packet)
 		}
 		else
 		{
-			if( m_activeRequests.find(actor) != m_activeRequests.end())
+			if (m_activeRequests.find(actor) != m_activeRequests.end())
 				m_activeRequests[actor]->m_callback(packet);
-			
+
 			_prepareToSend(actor);
 		}
-		
+
 	}
 
 
 }
 
-void FireFoxDriver::_prepareToSend(const string& actor)
+void FireFoxDriver_Impl::_prepareToSend(const std::string& actor)
 {
 	string to = actor;
 
 	vector<string> elemToShrink;
-	
+
 	for (auto& it : m_pendingRequests)
 	{
 		if (m_activeRequests.find(it->m_to) == m_activeRequests.end()) {
 			elemToShrink.push_back(it->m_to);
 			m_asyncEndpoint.Send(it->m_packet);
 			m_activeRequests[it->m_to] = it;
-			
+
 		}
 		else
 		{
 			m_activeRequests.erase(it->m_to);
 		}
-		
-		
+
+
 	}
 
 	std::remove_if(m_pendingRequests.begin(), m_pendingRequests.end(), [&](const shared_ptr<Request> req) {
@@ -288,7 +290,7 @@ void FireFoxDriver::_prepareToSend(const string& actor)
 			return true;
 		return false;
 	});
-	
+
 	//remove empty
 	size_t t = elemToShrink.size();
 	while (t)
@@ -297,22 +299,22 @@ void FireFoxDriver::_prepareToSend(const string& actor)
 		--t;
 	}
 
-	
+
 }
 
-void FireFoxDriver::Run()
+void FireFoxDriver_Impl::Run()
 {
-	
+
 	m_ioservice.run();
 }
 
-void FireFoxDriver::OnConnect(function<void(void)>&& inCB)
+void FireFoxDriver_Impl::OnConnect(function<void(void)>&& inCB)
 {
 	// become ready
 	m_onConnectHandler = inCB;
 }
 
-void FireFoxDriver::Stop()
+void FireFoxDriver_Impl::Stop()
 {
 	m_ioservice.stop();
 }

@@ -25,7 +25,8 @@ class DemoHandler
 
 	void  OnTabListed(const vector<Tab*>& tabs)
 	{
-		m_tab = *(tabs.rbegin());
+		m_tab = (*(tabs.rbegin()))->Clone();
+		for (auto& it : tabs) delete it;
 		m_driver->ReloadTab(*m_tab, std::move(std::bind(&DemoHandler::OnTabReloaded, this, placeholders::_1)));
 	}
 
@@ -71,11 +72,17 @@ class DemoHandler
 public:
 
 	DemoHandler( FireFoxDriver* inDriver)
-		:m_driver(inDriver)
+		:m_driver(inDriver),
+		m_tab(nullptr)
 	{
 		m_driver->OnConnect(std::bind(&DemoHandler::HandleOnConnect,this));
 	}
 
+
+	~DemoHandler() {
+		if (m_tab) delete m_tab;
+
+	}
 
 
 };

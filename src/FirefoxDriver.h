@@ -22,39 +22,33 @@ class JSONPacket;
 
 class PUBLIC_API Tab {
 
-	Tab_Impl*    m_impl;
-    
+	
     public:
 	
-	Tab(Tab_Impl* impl):m_impl(impl){}
+	Tab();
 
-    virtual const std::string& GetURL() const;
+	
+    virtual const std::string& GetURL() const ;
     virtual const std::string& GetTitle() const;
-    virtual const std::string& GetActor() const;
+	virtual const std::string& GetActor() const;
 	virtual const std::string& GetConsoleActor() const;
+
+	virtual Tab* Clone() const ;
+
+	virtual ~Tab();
 };
 
 
 
 
 class PUBLIC_API FireFoxDriver  {
-
-	FireFoxDriver_Impl* m_impl;
-
-	FireFoxDriver(FireFoxDriver_Impl* impl) : m_impl(impl) {}
+	
 
 public:
 	typedef std::function<void(const JSONPacket&)>&&  CallBackType;
 
-	static FireFoxDriver Create();
+	static FireFoxDriver* Create(const std::string& optArgs = "");
     
-    /*
-        @ctor
-		@params
-				optArgs  optional argument to be passed to FireFox
-        @info Create new Firefox process
-    */
-	FireFoxDriver(const std::string& optArgs = "");
     
     /*
         @function GetTabList
@@ -64,6 +58,8 @@ public:
         @return   vector of Tab object
     */
     
+
+	virtual void GetTabList(std::function<void(const std::vector<Tab*>&)>&&  inCB);
 
 	virtual void GetTabList(std::function<void(const std::vector<Tab>&)>&&  inCB);
     

@@ -84,10 +84,10 @@ public:
 			return false;
 		}
 
+		
 		m_pendingpacket = m_pendingpacket.substr(pos + 1);
 
-		m_lastpacket = JSONPacket_Impl::Parse(m_pendingpacket.substr(0, packetlen));
-
+		m_lastpacket = JSONPacket_Impl(m_pendingpacket.substr(0, packetlen));
 		m_delagate.OnPacketRecevied(m_lastpacket);
 
 		m_pendingpacket = m_pendingpacket.substr(packetlen);

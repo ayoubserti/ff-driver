@@ -1,5 +1,7 @@
-#define RAPIDJSON_HAS_STDSTRING 1
+
 #include "FirefoxDriver.h"
+#include "JSONPacket.h"
+#define RAPIDJSON_HAS_STDSTRING 1
 #if _WIN32
 #undef GetObject
 #endif
@@ -11,22 +13,25 @@
 #include <iostream>
 #include <fstream>
 
+#include <vector>
+using namespace std;
+
 class DemoHandler
 {
 
 	FireFoxDriver* m_driver;
 
-	Tab				m_tab;
+	Tab*				m_tab;
 
-	void  OnTabListed(const vector<Tab>& tabs)
+	void  OnTabListed(const vector<Tab*>& tabs)
 	{
-		m_tab = *tabs.rbegin();
-		m_driver->ReloadTab(m_tab, std::move(std::bind(&DemoHandler::OnTabReloaded, this, placeholders::_1)));
+		m_tab = *(tabs.rbegin());
+		m_driver->ReloadTab(*m_tab, std::move(std::bind(&DemoHandler::OnTabReloaded, this, placeholders::_1)));
 	}
 
 	void  OnTabReloaded(const JSONPacket& p)
 	{
-		m_driver->AttachTab(m_tab, std::bind(&DemoHandler::OnTabAttached, this, placeholders::_1));
+		m_driver->AttachTab(*m_tab, std::bind(&DemoHandler::OnTabAttached, this, placeholders::_1));
 	}
 
 	void  OnTabAttached(const JSONPacket& packet)
@@ -45,7 +50,7 @@ class DemoHandler
 			{
 				if ((string(obj["type"].GetString()) == "tabNavigated") && (string(obj["state"].GetString()) == "stop"))
 				{
-					m_driver->EvaluateJS(m_tab, "alert('hello')", std::bind(&DemoHandler::OnAlert,this, placeholders::_1));
+					m_driver->EvaluateJS(*m_tab, "alert('hello')", std::bind(&DemoHandler::OnAlert,this, placeholders::_1));
 				}
 			}
 		}
@@ -59,8 +64,8 @@ class DemoHandler
 	}
 
 	void HandleOnConnect() {
-
-		m_driver->GetTabList(std::bind(&DemoHandler::OnTabListed, this, placeholders::_1));
+		function<void(const vector<Tab*>&)> func = std::bind(&DemoHandler::OnTabListed, this, placeholders::_1);
+		m_driver->GetTabList(std::move(func));
 	}
 
 public:
@@ -127,17 +132,18 @@ int main(int argc, char** argv)
 	if (demo)
 	{
 		//demo option
-		FireFoxDriver ffDriver("-url http://wikipedia.com");
+		FireFoxDriver* ffDriver = FireFoxDriver::Create("-url http://wikipedia.com");
 	
-		DemoHandler demoHandler(&ffDriver);
-		ffDriver.Run();
+		DemoHandler demoHandler(ffDriver);
+		ffDriver->Run();
+		delete ffDriver;
 		return 0;
 	}
 
 
 
 	string options = args::get(optArgs);
-	FireFoxDriver ffDriver(options);
+	FireFoxDriver* ffDriver = FireFoxDriver::Create(options);
 
 
 	
@@ -145,62 +151,62 @@ int main(int argc, char** argv)
 	if (listTab)
 	{
 		
-		ffDriver.OnConnect([&]() {
-			ffDriver.GetTabList([&](const vector<Tab>& tabList) {
+		ffDriver->OnConnect([&]() {
+			ffDriver->GetTabList([&](const vector<Tab*>& tabList) {
 				int i = 1;
 				for (auto& it : tabList)
 				{
 
 					cout << "Tab #" << i << ": " << endl;
-					cout << "	" << "title: " << it.GetTitle() << endl;
-					cout << "	" << "URL: " << it.GetURL() << endl;
-					cout << "	" << "actor" << it.GetActor() << endl;
+					cout << "	" << "title: " << it->GetTitle() << endl;
+					cout << "	" << "URL: " << it->GetURL() << endl;
+					cout << "	" << "actor" << it->GetActor() << endl;
 					++i;
 				}
-				ffDriver.Stop();
+				ffDriver->Stop();
 			});
 		});
 
-		ffDriver.Run();
+		ffDriver->Run();
 
 		
 	}
 	else if (newTab)
 	{
-		ffDriver.OnConnect([&]() {
-			ffDriver.OpenNewTab(args::get(newTab), [&](const JSONPacket&) { ffDriver.Stop(); });
+		ffDriver->OnConnect([&]() {
+			ffDriver->OpenNewTab(args::get(newTab), [&](const JSONPacket&) { ffDriver->Stop(); });
 
 		});
-		ffDriver.Run();
+		ffDriver->Run();
 	}
 	else if (closeTab)
 	{
 		int tabToCloseId = args::get(closeTab);
-		ffDriver.OnConnect([&]() {
-			ffDriver.GetTabList([&ffDriver, tabToCloseId](const vector<Tab>& allTabs) {
+		ffDriver->OnConnect([&]() {
+			ffDriver->GetTabList([&ffDriver, tabToCloseId](const vector<Tab>& allTabs) {
 				if (allTabs.size() >= tabToCloseId && tabToCloseId > 0) {
-					ffDriver.CloseTab(allTabs[tabToCloseId - 1], [&](const JSONPacket&) {
-						ffDriver.Stop();
+					ffDriver->CloseTab(allTabs[tabToCloseId - 1], [&](const JSONPacket&) {
+						ffDriver->Stop();
 					});
 				}
 			});
 		});
 
-		ffDriver.Run();
+		ffDriver->Run();
 		
 	}
 	else if (navigateTab)
 	{
-		ffDriver.OnConnect([&]() {
+		ffDriver->OnConnect([&]() {
 			if (tabId && navigateUrl)
 			{
 				int tabIDvalue = args::get(tabId);
 				string url = args::get(navigateUrl);
-				ffDriver.GetTabList([&ffDriver, tabIDvalue, url](const vector<Tab>& allTabs) {
+				ffDriver->GetTabList([&ffDriver, tabIDvalue, url](const vector<Tab>& allTabs) {
 					if (allTabs.size() >= tabIDvalue && tabIDvalue > 0) {
 
-						ffDriver.NavigateTo(allTabs[tabIDvalue - 1], url, [&](const JSONPacket&) {
-							ffDriver.Stop();
+						ffDriver->NavigateTo(allTabs[tabIDvalue - 1], url, [&](const JSONPacket&) {
+							ffDriver->Stop();
 						});
 					}
 				});
@@ -217,33 +223,33 @@ int main(int argc, char** argv)
 			}
 		});
 
-		ffDriver.Run();
+		ffDriver->Run();
 	}
 
 	else if (reloadTab)
 	{
-		ffDriver.OnConnect([&]() {
+		ffDriver->OnConnect([&]() {
 			int TabId = args::get(reloadTab);
 
-			ffDriver.GetTabList([&ffDriver, TabId](const vector<Tab>& allTabs) {
+			ffDriver->GetTabList([&ffDriver, TabId](const vector<Tab>& allTabs) {
 				if (allTabs.size() >= TabId && TabId > 0) {
-					ffDriver.ReloadTab(allTabs[TabId - 1], [&](const JSONPacket&) {
-						ffDriver.Stop();
+					ffDriver->ReloadTab(allTabs[TabId - 1], [&](const JSONPacket&) {
+						ffDriver->Stop();
 					});
 				}
 			});
 		});
 
-		ffDriver.Run();
+		ffDriver->Run();
 		
 	}
 	
 	else if (evaluateJS)
 	{
-		ffDriver.OnConnect([&]() {
+		ffDriver->OnConnect([&]() {
 			int TabId = args::get(tabId);
 
-			ffDriver.GetTabList([&](const vector<Tab>& allTabs) {
+			ffDriver->GetTabList([&](const vector<Tab>& allTabs) {
 				string jscode = "";
 				if (file)
 				{
@@ -251,7 +257,7 @@ int main(int argc, char** argv)
 					fileScript.open(args::get(file), std::ios_base::in);
 					if (!fileScript.is_open()) {
 						cerr << "Can't open file " << args::get(file) << endl;
-						ffDriver.Stop();
+						ffDriver->Stop();
 						return;
 					}
 					std::string contentScript((std::istreambuf_iterator<char>(fileScript)),
@@ -266,39 +272,39 @@ int main(int argc, char** argv)
 				else
 				{
 					cerr << "You must use --file or --text with --eval command" << endl;
-					ffDriver.Stop();
+					ffDriver->Stop();
 					return;
 				}
 
 				if (allTabs.size() >= TabId && TabId >0) {
 
-					ffDriver.EvaluateJS(allTabs[TabId - 1], jscode, [&](const JSONPacket& p) {
+					ffDriver->EvaluateJS(allTabs[TabId - 1], jscode, [&](const JSONPacket& p) {
 						cout << p.GetMsg() << endl;
-						ffDriver.Stop();
+						ffDriver->Stop();
 					});
 				}
 				
 			});
 		});
 
-		ffDriver.Run();
+		ffDriver->Run();
 		
 	}
 	else if (attach)
 	{
 		int tabId = args::get(attach);
-		ffDriver.OnConnect([&]() {
-			ffDriver.GetTabList([&](const vector<Tab>& allTabs) {
+		ffDriver->OnConnect([&]() {
+			ffDriver->GetTabList([&](const vector<Tab>& allTabs) {
 				if (allTabs.size() >= tabId && tabId > 0) {
 					
-					ffDriver.AttachTab(allTabs[tabId - 1], [&](const JSONPacket& p) {
+					ffDriver->AttachTab(allTabs[tabId - 1], [&](const JSONPacket& p) {
 						cout << p.GetMsg() << endl;
 					});
 				}
 			});
 		});
 
-		ffDriver.Run();
+		ffDriver->Run();
 	}
 
     return 0;

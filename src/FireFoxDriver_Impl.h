@@ -71,6 +71,8 @@ public:
 	*/
 
 
+	void GetTabList(function<void(const vector<Tab*>&)>&&  inCB);
+
 	void GetTabList(function<void(const vector<Tab>&)>&&  inCB);
 
 	/*

@@ -47,6 +47,7 @@ public:
 
 
 FireFoxDriver_Impl::FireFoxDriver_Impl(const std::string& optArgs) :
+	FireFoxDriver(),
 	FirefoxProcess(optArgs)
 	, m_asyncEndpoint(*this, "127.0.0.1", 6000)
 {
@@ -80,6 +81,43 @@ void FireFoxDriver_Impl::GetTabList(function<void(const vector<Tab>&)>&& inCB)
 				tab.m_tabActor = tabObj["actor"].GetString();
 				tab.m_TabURL = tabObj["url"].GetString();
 				tab.m_consoleActor = tabObj["consoleActor"].GetString();
+				tabs.push_back(tab);
+			}
+			inCB(tabs);
+		}
+	};
+
+	shared_ptr<Request> req(new Request("root", jsonPacket, completion));
+	m_pendingRequests.push_back(req);
+	_prepareToSend("root");
+}
+void FireFoxDriver_Impl::GetTabList(function<void(const vector<Tab*>&)>&& inCB)
+{
+
+	JSONPacket_Impl jsonPacket("{ \"to\":\"root\", \"type\":\"listTabs\" }");
+	auto completion = [=](const JSONPacket& packet) {
+
+		rapidjson::Document document;
+		if (document.Parse(packet.GetMsg()).HasParseError())
+		{
+			std::cerr << "Error while Parsing recieved JSON:  " << document.GetParseError() << std::endl;
+			return;
+		}
+		auto obj = document.GetObject();
+		//check actor
+		string actor = obj["from"].GetString();
+		if (actor == "root" && obj.HasMember("tabs"))
+		{
+			vector<Tab*> tabs;
+			const auto& tabsArray = obj["tabs"].GetArray();
+			for (auto& it : tabsArray)
+			{
+				auto tabObj = it.GetObject();
+				Tab_Impl*  tab = new Tab_Impl;
+				tab->m_title = tabObj["title"].GetString();
+				tab->m_tabActor = tabObj["actor"].GetString();
+				tab->m_TabURL = tabObj["url"].GetString();
+				tab->m_consoleActor = tabObj["consoleActor"].GetString();
 				tabs.push_back(tab);
 			}
 			inCB(tabs);
@@ -319,22 +357,50 @@ void FireFoxDriver_Impl::Stop()
 	m_ioservice.stop();
 }
 
+static const std::string emptyString("");
+
+Tab::Tab()
+{
+
+}
+/*
+Tab::Tab(Tab_Impl* impl)
+	:m_impl(impl)
+{}
+
+*/
 const string& Tab::GetURL() const
 {
-	return m_impl->GetURL();
+	//if (m_impl != nullptr) return m_impl->GetURL();
+	return emptyString;
 }
 
 const string& Tab::GetTitle() const
 {
-	return m_impl->GetTitle();
+	//if (m_impl != nullptr) return m_impl->GetTitle();
+	return emptyString;
 }
 
 const string& Tab::GetActor() const
 {
-	return m_impl->GetActor();
+	//if (m_impl != nullptr) return m_impl->GetActor();
+	return emptyString;
 }
 
 const string& Tab::GetConsoleActor() const
 {
-	return m_impl->GetConsoleActor();
+	//if (m_impl != nullptr) return m_impl->GetConsoleActor();
+	return emptyString;
+}
+
+Tab*  Tab::Clone() const
+{
+	return nullptr;
+}
+
+
+
+Tab::~Tab()
+{
+	
 }

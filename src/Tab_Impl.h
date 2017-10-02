@@ -14,10 +14,18 @@ class Tab_Impl : public Tab
 	std::string m_consoleActor;
 
 	friend class FireFoxDriver_Impl;
+
+
 	
 public:
 
-	Tab_Impl() : Tab(this) {}
+	Tab_Impl() : 
+		Tab()
+		,m_TabURL("")
+	    ,m_title("")
+	    ,m_tabActor("")
+		,m_consoleActor("")
+	{}
 
 	const string& GetURL() const
 	{
@@ -33,6 +41,11 @@ public:
 	const string& GetConsoleActor() const
 	{
 		return m_consoleActor;
+	}
+
+	Tab* Clone() const
+	{
+		return new Tab_Impl(*this);
 	}
 
 };

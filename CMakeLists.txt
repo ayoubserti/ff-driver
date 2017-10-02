@@ -18,4 +18,6 @@ target_include_directories("ff-driver-cmd" PRIVATE "deps/asio/asio/include" "dep
 
 add_dependencies("ff-driver-cmd" "ff-driver")
 
+target_link_libraries("ff-driver-cmd" PRIVATE "ff-driver")
+
 

@@ -28,28 +28,23 @@ void FireFoxDriver::GetTabList(function<void(const vector<Tab*>&)>&& inCB)
 
 	//m_impl->GetTabList(std::move(inCB));
 }
-void FireFoxDriver::GetTabList(function<void(const vector<Tab>&)>&& inCB)
-{
-
-	//m_impl->GetTabList(std::move(inCB));
-}
 void FireFoxDriver::OpenNewTab(const string& url, CallBackType inCB)
 {
 	//m_impl->OpenNewTab(url, std::move(inCB));
 }
 
-void FireFoxDriver::NavigateTo(const Tab & inTab, const std::string & inUrl, function<void(const JSONPacket&)>&& inCB)
+void FireFoxDriver::NavigateTo(const Tab& inTab, const std::string & inUrl, function<void(const JSONPacket&)>&& inCB)
 {
 	
 	//m_impl->NavigateTo(inTab, inUrl, std::move(inCB));
 }
 
-void FireFoxDriver::CloseTab(const Tab & inTab, CallBackType inCB)
+void FireFoxDriver::CloseTab(const Tab& inTab, CallBackType inCB)
 {
 	//m_impl->CloseTab(inTab, std::move(inCB));
 }
 
-void FireFoxDriver::ReloadTab(const Tab & inTab, CallBackType inCB)
+void FireFoxDriver::ReloadTab(const Tab& inTab, CallBackType inCB)
 {
 	//m_impl->ReloadTab(inTab, std::move(inCB));
 	
@@ -61,7 +56,7 @@ void FireFoxDriver::EvaluateJS(const Tab& inTab, const string& inScript, CallBac
 	//m_impl->EvaluateJS(inTab, inScript, std::move(inCB));
 }
 
-void FireFoxDriver::AttachTab(const Tab& inTab, function<void(const JSONPacket&)>&& inCB)
+void FireFoxDriver::AttachTab(const Tab&, function<void(const JSONPacket&)>&& inCB)
 {
 	//m_impl->AttachTab(inTab, std::move(inCB));
 

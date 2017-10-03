@@ -20,12 +20,14 @@ class Tab_Impl : public Tab
 public:
 
 	Tab_Impl() : 
-		Tab()
+		Tab(this)
 		,m_TabURL("")
 	    ,m_title("")
 	    ,m_tabActor("")
 		,m_consoleActor("")
 	{}
+
+	
 
 	const string& GetURL() const
 	{

@@ -190,9 +190,9 @@ int main(int argc, char** argv)
 	{
 		int tabToCloseId = args::get(closeTab);
 		ffDriver->OnConnect([&]() {
-			ffDriver->GetTabList([&ffDriver, tabToCloseId](const vector<Tab>& allTabs) {
+			ffDriver->GetTabList([&ffDriver, tabToCloseId](const vector<Tab*>& allTabs) {
 				if (allTabs.size() >= tabToCloseId && tabToCloseId > 0) {
-					ffDriver->CloseTab(allTabs[tabToCloseId - 1], [&](const JSONPacket&) {
+					ffDriver->CloseTab(*allTabs[tabToCloseId - 1], [&](const JSONPacket&) {
 						ffDriver->Stop();
 					});
 				}
@@ -209,10 +209,10 @@ int main(int argc, char** argv)
 			{
 				int tabIDvalue = args::get(tabId);
 				string url = args::get(navigateUrl);
-				ffDriver->GetTabList([&ffDriver, tabIDvalue, url](const vector<Tab>& allTabs) {
+				ffDriver->GetTabList([&ffDriver, tabIDvalue, url](const vector<Tab*>& allTabs) {
 					if (allTabs.size() >= tabIDvalue && tabIDvalue > 0) {
 
-						ffDriver->NavigateTo(allTabs[tabIDvalue - 1], url, [&](const JSONPacket&) {
+						ffDriver->NavigateTo(*allTabs[tabIDvalue - 1], url, [&](const JSONPacket&) {
 							ffDriver->Stop();
 						});
 					}
@@ -238,9 +238,9 @@ int main(int argc, char** argv)
 		ffDriver->OnConnect([&]() {
 			int TabId = args::get(reloadTab);
 
-			ffDriver->GetTabList([&ffDriver, TabId](const vector<Tab>& allTabs) {
+			ffDriver->GetTabList([&ffDriver, TabId](const vector<Tab*>& allTabs) {
 				if (allTabs.size() >= TabId && TabId > 0) {
-					ffDriver->ReloadTab(allTabs[TabId - 1], [&](const JSONPacket&) {
+					ffDriver->ReloadTab(*allTabs[TabId - 1], [&](const JSONPacket&) {
 						ffDriver->Stop();
 					});
 				}
@@ -256,7 +256,7 @@ int main(int argc, char** argv)
 		ffDriver->OnConnect([&]() {
 			int TabId = args::get(tabId);
 
-			ffDriver->GetTabList([&](const vector<Tab>& allTabs) {
+			ffDriver->GetTabList([&](const vector<Tab*>& allTabs) {
 				string jscode = "";
 				if (file)
 				{
@@ -285,7 +285,7 @@ int main(int argc, char** argv)
 
 				if (allTabs.size() >= TabId && TabId >0) {
 
-					ffDriver->EvaluateJS(allTabs[TabId - 1], jscode, [&](const JSONPacket& p) {
+					ffDriver->EvaluateJS(*allTabs[TabId - 1], jscode, [&](const JSONPacket& p) {
 						cout << p.GetMsg() << endl;
 						ffDriver->Stop();
 					});
@@ -301,10 +301,10 @@ int main(int argc, char** argv)
 	{
 		int tabId = args::get(attach);
 		ffDriver->OnConnect([&]() {
-			ffDriver->GetTabList([&](const vector<Tab>& allTabs) {
+			ffDriver->GetTabList([&](const vector<Tab*>& allTabs) {
 				if (allTabs.size() >= tabId && tabId > 0) {
 					
-					ffDriver->AttachTab(allTabs[tabId - 1], [&](const JSONPacket& p) {
+					ffDriver->AttachTab(*allTabs[tabId - 1], [&](const JSONPacket& p) {
 						cout << p.GetMsg() << endl;
 					});
 				}

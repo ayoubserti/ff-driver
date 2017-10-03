@@ -10,7 +10,7 @@
 #include <functional>
 #include <string>
 #include <vector>
-
+#include <memory>
 
 //forward declation
 class Tab_Impl;
@@ -22,11 +22,17 @@ class JSONPacket;
 
 class PUBLIC_API Tab {
 
+	Tab_Impl*  m_impl;
+
+	Tab(Tab_Impl*);
+
+	friend class Tab_Impl;
 	
     public:
 	
 	Tab();
 
+	Tab(const Tab_Impl&);
 	
     virtual const std::string& GetURL() const ;
     virtual const std::string& GetTitle() const;
@@ -59,9 +65,8 @@ public:
     */
     
 
+	
 	virtual void GetTabList(std::function<void(const std::vector<Tab*>&)>&&  inCB);
-
-	virtual void GetTabList(std::function<void(const std::vector<Tab>&)>&&  inCB);
     
     /*
         @function OpenNewTab

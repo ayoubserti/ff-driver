@@ -54,43 +54,6 @@ FireFoxDriver_Impl::FireFoxDriver_Impl(const std::string& optArgs) :
 	m_asyncEndpoint.Start();
 	m_status = eWaitingHandShake;
 }
-void FireFoxDriver_Impl::GetTabList(function<void(const vector<Tab>&)>&& inCB)
-{
-
-	JSONPacket_Impl jsonPacket("{ \"to\":\"root\", \"type\":\"listTabs\" }");
-	auto completion = [=](const JSONPacket& packet) {
-
-		rapidjson::Document document;
-		if (document.Parse(packet.GetMsg()).HasParseError())
-		{
-			std::cerr << "Error while Parsing recieved JSON:  " << document.GetParseError() << std::endl;
-			return;
-		}
-		auto obj = document.GetObject();
-		//check actor
-		string actor = obj["from"].GetString();
-		if (actor == "root" && obj.HasMember("tabs"))
-		{
-			vector<Tab> tabs;
-			const auto& tabsArray = obj["tabs"].GetArray();
-			for (auto& it : tabsArray)
-			{
-				auto tabObj = it.GetObject();
-				Tab_Impl tab;
-				tab.m_title = tabObj["title"].GetString();
-				tab.m_tabActor = tabObj["actor"].GetString();
-				tab.m_TabURL = tabObj["url"].GetString();
-				tab.m_consoleActor = tabObj["consoleActor"].GetString();
-				tabs.push_back(tab);
-			}
-			inCB(tabs);
-		}
-	};
-
-	shared_ptr<Request> req(new Request("root", jsonPacket, completion));
-	m_pendingRequests.push_back(req);
-	_prepareToSend("root");
-}
 void FireFoxDriver_Impl::GetTabList(function<void(const vector<Tab*>&)>&& inCB)
 {
 
@@ -113,7 +76,7 @@ void FireFoxDriver_Impl::GetTabList(function<void(const vector<Tab*>&)>&& inCB)
 			for (auto& it : tabsArray)
 			{
 				auto tabObj = it.GetObject();
-				Tab_Impl*  tab = new Tab_Impl;
+				Tab_Impl* tab= new Tab_Impl;
 				tab->m_title = tabObj["title"].GetString();
 				tab->m_tabActor = tabObj["actor"].GetString();
 				tab->m_TabURL = tabObj["url"].GetString();
@@ -128,6 +91,7 @@ void FireFoxDriver_Impl::GetTabList(function<void(const vector<Tab*>&)>&& inCB)
 	m_pendingRequests.push_back(req);
 	_prepareToSend("root");
 }
+
 
 void FireFoxDriver_Impl::OpenNewTab(const string& url, CallBackType inCB)
 {
@@ -163,7 +127,7 @@ void FireFoxDriver_Impl::OpenNewTab(const string& url, CallBackType inCB)
 
 }
 
-void FireFoxDriver_Impl::NavigateTo(const Tab & inTab, const std::string & inUrl, function<void(const JSONPacket&)>&& inCB)
+void FireFoxDriver_Impl::NavigateTo(const Tab& inTab, const std::string & inUrl, function<void(const JSONPacket&)>&& inCB)
 {
 
 
@@ -188,7 +152,7 @@ void FireFoxDriver_Impl::NavigateTo(const Tab & inTab, const std::string & inUrl
 
 }
 
-void FireFoxDriver_Impl::CloseTab(const Tab & inTab, CallBackType inCB)
+void FireFoxDriver_Impl::CloseTab(const Tab& inTab, CallBackType inCB)
 {
 	//as there is no Request msg to close a Tab; we evaluate 'window.close()'in the Tab
 	//this hack works only with tab open using a script
@@ -213,7 +177,7 @@ void FireFoxDriver_Impl::CloseTab(const Tab & inTab, CallBackType inCB)
 	_prepareToSend(inTab.GetActor());
 }
 
-void FireFoxDriver_Impl::ReloadTab(const Tab & inTab, CallBackType inCB)
+void FireFoxDriver_Impl::ReloadTab(const Tab& inTab, CallBackType inCB)
 {
 	string msg = "{\"to\":\":actor\", \"type\": \"reload\"}";
 	msg = std::regex_replace(msg, regex(":actor"), inTab.GetActor());
@@ -360,15 +324,20 @@ void FireFoxDriver_Impl::Stop()
 static const std::string emptyString("");
 
 Tab::Tab()
+	:m_impl(nullptr)
 {
 
 }
-/*
+
 Tab::Tab(Tab_Impl* impl)
 	:m_impl(impl)
 {}
 
-*/
+Tab::Tab(const Tab_Impl& other)
+{
+	m_impl = &(const_cast<Tab_Impl&>(other));
+}
+
 const string& Tab::GetURL() const
 {
 	//if (m_impl != nullptr) return m_impl->GetURL();
@@ -383,7 +352,7 @@ const string& Tab::GetTitle() const
 
 const string& Tab::GetActor() const
 {
-	//if (m_impl != nullptr) return m_impl->GetActor();
+	if (m_impl != nullptr) return m_impl->GetActor();
 	return emptyString;
 }
 

@@ -139,11 +139,18 @@ int main(int argc, char** argv)
 	if (demo)
 	{
 		//demo option
+<<<<<<< HEAD:src/main.cpp
+		FireFoxDriver ffDriver("-url http://wikipedia.com");
+	
+		DemoHandler demoHandler(&ffDriver);
+		ffDriver.Run();
+=======
 		FireFoxDriver* ffDriver = FireFoxDriver::Create("-url http://wikipedia.com");
 	
 		DemoHandler demoHandler(ffDriver);
 		ffDriver->Run();
 		delete ffDriver;
+>>>>>>> 7-split-lib-and-cli:cli/main.cpp
 		return 0;
 	}
 

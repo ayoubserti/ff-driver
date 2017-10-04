@@ -4,19 +4,21 @@
 
 #ifndef  __NETWORK_H__
 #define  __NETWORK_H__
-#ifdef _WIN32
-#define  _WIN32_WINNT  0x0601
-#define  ASIO_DISABLE_IOCP 1
-#endif
-#define  ASIO_STANDALONE 1
-#include "asio.hpp"
-#include "JSONPacket.h"
-#include <functional>
+
 #include <string>
 #include <queue>
+
 class FireFoxDriver;
+class JSONPacket;
+class Endpoint_Impl;
 
+namespace std {
+	class error_code;
+}
 
+namespace  asio{
+	class io_context;
+}
 
 class INetworkDelegate
 {
@@ -30,35 +32,18 @@ public:
 
 class Endpoint {
 
+	Endpoint_Impl* m_impl;
+	
+protected:
+
 	INetworkDelegate& m_delagate;
 
-	asio::ip::tcp::socket m_socket;
-
-	string m_address;
-
-	long   m_port;
-	
-	std::vector<char> m_buffer;
-
-	std::string m_pendingpacket;
-
-	JSONPacket m_lastpacket;
-
-	queue<string>     m_messagesToSend;
-	string			m_messageToSend;
-
-	void read_handler(const std::error_code&, std::size_t);
-
-	bool read_message();
-
-	void send_handler (const std::error_code&, std::size_t);
-
 public :
-	Endpoint(INetworkDelegate& delegator, const std::string&  address, long port);
+	Endpoint(INetworkDelegate& delegator, Endpoint_Impl* impl);
 
-	void Start();
+	virtual void Start();
 
-	void Send(const JSONPacket& packet);
+	virtual void Send(const JSONPacket& packet);
 
 
 };

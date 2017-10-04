@@ -4,7 +4,7 @@
 
 #ifndef __PROCESS_LAUNCHR_H__
 #define __PROCESS_LAUNCHR_H__
-
+#include "config.h"
 #include <windows.h>
 #include <string>
 

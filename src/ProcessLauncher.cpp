@@ -46,8 +46,10 @@ static std::string GetFireFoxInstallationPathForPlatform(PlatformArch arch)
 				{
 					result = path;
 				}
+				RegCloseKey(hKey2);
 			}
 		}
+		RegCloseKey(hKey);
 	}
 	else if (lRes == ERROR_FILE_NOT_FOUND)
 	{

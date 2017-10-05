@@ -221,11 +221,77 @@ void FireFoxDriver_Impl::AttachTab(const Tab& inTab, function<void(const JSONPac
 	msg = std::regex_replace(msg, regex(":actor"), inTab.GetActor());
 	JSONPacket_Impl request(msg);
 
+	
 	shared_ptr<Request> req(new Request(inTab.GetActor(), request, std::move(inCB)));
 
 	m_pendingRequests.push_back(req);
 	_prepareToSend(inTab.GetActor());
 
+}
+
+
+void FireFoxDriver_Impl::AttachTab(Tab* inTab, function<void(const JSONPacket&)>&& inCB)
+{
+	string msg = "{\"to\":\":actor\", \"type\": \"attach\"}";
+	msg = std::regex_replace(msg, regex(":actor"), inTab->GetActor());
+	JSONPacket_Impl request(msg);
+
+	Tab_Impl* tab = dynamic_cast< Tab_Impl*>(inTab);
+
+	auto interceptor = [=](const JSONPacket& packet)
+	{
+		//need an interceptor to add ThreadActor
+		if (tab->GetThreadActor() == "")
+		{
+			rapidjson::Document document;
+			if (document.Parse(packet.GetMsg()).HasParseError())
+			{
+				std::cerr << "Error while Parsing recieved JSON:  " << document.GetParseError() << std::endl;
+				return;
+			}
+			else
+			{
+				auto obj = document.GetObject();
+				if (obj.HasMember("from") && (tab->GetActor() == obj["from"].GetString()))
+				{
+					if (obj.HasMember("type") && (string("tabAttached") == obj["type"].GetString()))
+					{
+						tab->SetThreadActor(obj["threadActor"].GetString());
+					}
+				}
+			}
+		}
+
+		inCB(packet);
+
+	};
+
+	shared_ptr<Request> req(new Request(inTab->GetActor(), request, std::move(interceptor)));
+
+	m_pendingRequests.push_back(req);
+	_prepareToSend(inTab->GetActor());
+
+}
+bool    FireFoxDriver_Impl::AttachTabThread(const Tab& inTab, CallBackType inCB)
+{
+	if (inTab.GetTabThreadState() != Tab::eThreadState::eDetached)
+	{
+		return false;
+	}
+	else
+	{
+		string msg = "{\"to\":\":actor\", \"type\": \"attach\"}";
+		string actor = inTab.GetThreadActor();
+		msg = std::regex_replace(msg, regex(":actor"), actor);
+		JSONPacket_Impl request(msg);
+
+		shared_ptr<Request> req(new Request(actor, request, std::move(inCB)));
+
+		m_pendingRequests.push_back(req);
+		_prepareToSend(actor);
+
+		return true;
+	}
 }
 
 asio::io_context & FireFoxDriver_Impl::GetIOService()
@@ -324,13 +390,15 @@ void FireFoxDriver_Impl::Stop()
 static const std::string emptyString("");
 
 Tab::Tab()
-	:m_impl(nullptr)
+	:m_impl(nullptr),
+	m_TabThreadState(eThreadState::eDetached)
 {
 
 }
 
 Tab::Tab(Tab_Impl* impl)
-	:m_impl(impl)
+	:m_impl(impl),
+	m_TabThreadState(eThreadState::eDetached)
 {}
 
 Tab::Tab(const Tab_Impl& other)
@@ -362,6 +430,19 @@ const string& Tab::GetConsoleActor() const
 	return emptyString;
 }
 
+const string& Tab::GetThreadActor() const
+{
+	return emptyString;
+}
+Tab::eThreadState Tab::GetTabThreadState() const
+{
+	return m_TabThreadState;
+}
+
+void Tab::SetThreadActor(const std::string&) const
+{
+	
+}
 Tab*  Tab::Clone() const
 {
 	return nullptr;

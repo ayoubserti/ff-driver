@@ -29,6 +29,14 @@ class PUBLIC_API Tab {
 	friend class Tab_Impl;
 	
     public:
+
+		enum eThreadState {
+
+			eDetached,
+			ePaused,
+			eRunning,
+			eExited
+		};
 	
 	Tab();
 
@@ -41,7 +49,17 @@ class PUBLIC_API Tab {
 
 	virtual Tab* Clone() const ;
 
+	eThreadState GetTabThreadState() const;
+
+	virtual const std::string& GetThreadActor() const;
+
+	virtual void  SetThreadActor(const std::string&) const;
+
+	
 	virtual ~Tab();
+
+protected:
+	mutable eThreadState  m_TabThreadState;
 };
 
 
@@ -125,7 +143,17 @@ public:
 
 	virtual void	AttachTab(const Tab& inTab, CallBackType inCB);
 
+	virtual void	AttachTab(Tab* inTab, CallBackType inCB);
 	
+	/*
+	  @function     AttachTabThread
+	  @info         attach a to threadActor of an already attached thread. The attached thread will into a paused state
+	  @params		inTab a Tab which must already attached
+	                inCB  callback function 
+	  @return       true if OK, false otherwise
+	*/
+
+	virtual bool    AttachTabThread(const Tab& inTab, CallBackType inCB);
     
 	/*
 		@function	Run

@@ -62,6 +62,18 @@ void FireFoxDriver::AttachTab(const Tab&, function<void(const JSONPacket&)>&& in
 
 }
 
+void FireFoxDriver::AttachTab(Tab*, function<void(const JSONPacket&)>&& inCB)
+{
+	//m_impl->AttachTab(inTab, std::move(inCB));
+
+}
+
+
+bool    FireFoxDriver::AttachTabThread(const Tab& inTab, CallBackType inCB)
+{
+
+	return false;
+}
 void FireFoxDriver::Run()
 {
 	

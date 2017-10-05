@@ -131,6 +131,17 @@ public:
 	*/
 
 	void	AttachTab(const Tab& inTab, CallBackType inCB);
+	void	AttachTab( Tab* inTab, CallBackType inCB);
+
+	/*
+	@function     AttachTabThread
+	@info         attach a to threadActor of an already attached thread. The attached thread will into a paused state
+	@params		inTab a Tab which must already attached
+	inCB  callback function
+	@return       true if OK, false otherwise
+	*/
+
+	virtual bool    AttachTabThread(const Tab& inTab, CallBackType inCB);
 
 	//from INetworkDelegate
 

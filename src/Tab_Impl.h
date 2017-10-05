@@ -12,6 +12,7 @@ class Tab_Impl : public Tab
 	std::string m_title;
 	std::string m_tabActor;
 	std::string m_consoleActor;
+	mutable std::string m_TabThreadActor; //TODO: find more elegant way
 
 	friend class FireFoxDriver_Impl;
 
@@ -25,6 +26,7 @@ public:
 	    ,m_title("")
 	    ,m_tabActor("")
 		,m_consoleActor("")
+		,m_TabThreadActor("")
 	{}
 
 	
@@ -44,7 +46,14 @@ public:
 	{
 		return m_consoleActor;
 	}
-
+	const std::string& GetThreadActor() const
+	{
+		return m_TabThreadActor;
+	}
+	void  SetThreadActor(const std::string& actor) const
+	{
+		m_TabThreadActor = actor;
+	}
 	Tab* Clone() const
 	{
 		return new Tab_Impl(*this);

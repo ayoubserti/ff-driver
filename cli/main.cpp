@@ -32,7 +32,7 @@ class DemoHandler
 
 	void  OnTabReloaded(const JSONPacket& p)
 	{
-		m_driver->AttachTab(*m_tab, std::bind(&DemoHandler::OnTabAttached, this, placeholders::_1));
+		m_driver->AttachTab(m_tab, std::bind(&DemoHandler::OnTabAttached, this, placeholders::_1));
 	}
 
 	void  OnTabAttached(const JSONPacket& packet)
@@ -61,8 +61,15 @@ class DemoHandler
 	void OnAlert(const JSONPacket& packet)
 	{
 		//alert was received
-		m_driver->Stop();
+		m_driver->AttachTabThread(*m_tab, std::bind(&DemoHandler::OnThreadAttached, this, placeholders::_1));
+		
 	}
+
+	void OnThreadAttached(const JSONPacket& packet)
+	{
+		cout << packet.GetMsg() << endl;
+	}
+
 
 	void HandleOnConnect() {
 		function<void(const vector<Tab*>&)> func = std::bind(&DemoHandler::OnTabListed, this, placeholders::_1);

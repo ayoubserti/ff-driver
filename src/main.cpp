@@ -18,6 +18,8 @@ class DemoHandler
 
 	Tab				m_tab;
 
+	bool			m_threadAttached;
+
 	void  OnTabListed(const vector<Tab>& tabs)
 	{
 		m_tab = *tabs.rbegin();
@@ -55,7 +57,27 @@ class DemoHandler
 	void OnAlert(const JSONPacket& packet)
 	{
 		//alert was received
-		m_driver->Stop();
+		m_driver->AttachTabThread(m_tab, std::bind(&DemoHandler::OnThreadAttach, this, placeholders::_1));
+		
+	}
+
+	void OnThreadAttach(const JSONPacket& packet)
+	{
+		//m_driver->Stop();
+		if (!m_threadAttached)
+		{
+			m_threadAttached = true;
+			SourceLocation srcLoc;
+			srcLoc.SetURL("assets/js/gt-ie9-011f8dbfa9.js");
+			srcLoc.SetColumn(50);
+			srcLoc.SetLine(1);
+			m_driver->SetBreakPoint(m_tab, srcLoc, [](const JSONPacket& packet) {
+
+				cout << packet.GetMsg() << endl;
+			});
+		}
+		
+		cout << packet.GetMsg() << endl;
 	}
 
 	void HandleOnConnect() {
@@ -66,7 +88,8 @@ class DemoHandler
 public:
 
 	DemoHandler( FireFoxDriver* inDriver)
-		:m_driver(inDriver)
+		:m_driver(inDriver),
+		m_threadAttached(false)
 	{
 		m_driver->OnConnect(std::bind(&DemoHandler::HandleOnConnect,this));
 	}

@@ -190,13 +190,87 @@ void FireFoxDriver::AttachTab(const Tab& inTab, function<void(const JSONPacket&)
 	msg = std::regex_replace(msg, regex(":actor"), inTab.GetActor());
 	JSONPacket request(msg);
 
-	shared_ptr<Request> req(new Request(inTab.GetActor(), request, std::move(inCB)));
+	auto interceptor = [&inTab,inCB](const JSONPacket& packet) {
+		//need an interceptor to add ThreadActor
+		if (inTab.GetThreadActor() == "")
+		{
+			rapidjson::Document document;
+			if (document.Parse(packet.GetMsg()).HasParseError())
+			{
+				std::cerr << "Error while Parsing recieved JSON:  " << document.GetParseError() << std::endl;
+				return;
+			}
+			else
+			{
+				auto obj = document.GetObject();
+				if (obj.HasMember("from") && (inTab.GetActor() == obj["from"].GetString()))
+				{
+					if (obj.HasMember("type") && (string("tabAttached") == obj["type"].GetString()))
+					{
+						inTab.m_ThreadActor = obj["threadActor"].GetString();
+					}
+				}
+			}
+		}
+		inCB(packet);
+	};
+
+	shared_ptr<Request> req(new Request(inTab.GetActor(), request, std::move(interceptor)));
 
 	m_pendingRequests.push_back(req);
 	_prepareToSend(inTab.GetActor());
 
 }
+bool    FireFoxDriver::AttachTabThread(const Tab& inTab, function<void(const JSONPacket&)>&& inCB)
+{
+	if (inTab.GetTabThreadState() != Tab::eThreadState::eDetached)
+	{
+		return false;
+	}
+	else
+	{
+		string msg = "{\"to\":\":actor\", \"type\": \"attach\"}";
+		string actor = inTab.GetThreadActor();
+		msg = std::regex_replace(msg, regex(":actor"), actor);
+		JSONPacket request(msg);
 
+		auto interceptor = [&inTab, inCB](const JSONPacket& packet) {
+			
+			inTab.m_TabThreadState = Tab::ePaused;
+			inCB(packet);
+		};
+
+		shared_ptr<Request> req(new Request(actor, request, std::move(interceptor)));
+
+		m_pendingRequests.push_back(req);
+		_prepareToSend(actor);
+
+		return true;
+	}
+}
+
+
+bool FireFoxDriver::SetBreakPoint(const Tab & inTab, const SourceLocation & sourceLocation, CallBackType inCB)
+{
+	if((inTab.GetTabThreadState() != Tab::ePaused) && (inTab.GetTabThreadState() != Tab::eRunning))
+	   return false;
+
+	string msg = "{\"to\": \":actor\", \"type\": \"setBreakpoint\" , \"location\" : {\"url\":\":urlplace\", \"line\": :lineplace , \"column\" : :columnplace}}";
+	string actor = inTab.GetThreadActor();
+	msg = std::regex_replace(msg, regex(":actor"), actor);
+	msg = regex_replace(msg, regex(":urlplace"), sourceLocation.GetURL());
+	msg = regex_replace(msg, regex(":lineplace"), std::to_string(sourceLocation.GetLine()));
+	msg = regex_replace(msg, regex(":columnplace"), std::to_string(sourceLocation.GetColumn()));
+	JSONPacket request(msg);
+
+	shared_ptr<Request> req(new Request(actor, request, std::move(inCB)));
+
+	m_pendingRequests.push_back(req);
+	_prepareToSend(actor);
+
+	return true;
+
+}
 asio::io_context & FireFoxDriver::GetIOService()
 {
 	return m_ioservice;
@@ -291,6 +365,11 @@ void FireFoxDriver::Stop()
 	m_ioservice.stop();
 }
 
+Tab::Tab()
+	:m_TabThreadState(eDetached)
+{
+}
+
 string Tab::GetURL() const
 {
 	return m_TabURL;
@@ -309,4 +388,71 @@ string Tab::GetActor() const
 string Tab::GetConsoleActor() const
 {
 	return m_consoleActor;
+}
+
+string Tab::GetThreadActor() const
+{
+	return m_ThreadActor;
+}
+
+Tab::eThreadState Tab::GetTabThreadState() const
+{
+	return m_TabThreadState;
+}
+
+void Tab::_InterceptAttachTab(const JSONPacket& packet, function<void(const JSONPacket&)> &&inCB) const
+{
+	
+	//need an interceptor to add ThreadActor
+	if (GetThreadActor() == "")
+	{
+		rapidjson::Document document;
+		if (document.Parse(packet.GetMsg()).HasParseError())
+		{
+			std::cerr << "Error while Parsing recieved JSON:  " << document.GetParseError() << std::endl;
+			return;
+		}
+		else
+		{
+			auto obj = document.GetObject();
+			if (obj.HasMember("from") && (GetActor() == obj["from"].GetString()))
+			{
+				if (obj.HasMember("type") && (string("tabAttached") == obj["type"].GetString()))
+				{
+					m_ThreadActor = obj["threadActor"].GetString();
+				}
+			}
+		}
+	}
+	inCB(packet);
+}
+
+string SourceLocation::GetURL() const
+{
+	return m_URL;
+}
+
+long SourceLocation::GetLine() const
+{
+	return m_Line;
+}
+
+long SourceLocation::GetColumn() const
+{
+	return m_Column;
+}
+
+void SourceLocation::SetURL(const string & inURL)
+{
+	m_URL = inURL;
+}
+
+void SourceLocation::SetLine(long inLine)
+{
+	m_Line = inLine;
+}
+
+void SourceLocation::SetColumn(long inColumn)
+{
+	m_Column = inColumn;
 }

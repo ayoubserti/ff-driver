@@ -28,24 +28,65 @@ using namespace std;
 
 //forward declation
 
+
+
 class FireFoxDriver;
+
 class Tab{
 
     string m_TabURL;
     string m_title;
     string m_tabActor;
 	string m_consoleActor;
+	mutable	string m_ThreadActor;
+	
 	friend class FireFoxDriver;
+
+	
+	void  _InterceptAttachTab(const JSONPacket& packet, function<void(const JSONPacket&)> &&inCB) const;
 
     public:
 
+	
+	
+	enum eThreadState
+	{
+		eDetached,
+		ePaused,
+		eRunning,
+		eExited
 
+	};
+	Tab();
     string GetURL() const;
     string GetTitle() const;
     string GetActor() const;
 	string GetConsoleActor() const;
+	string GetThreadActor() const;
+
+	eThreadState GetTabThreadState() const;
+private:
+	mutable eThreadState  m_TabThreadState;
 };
 
+class SourceLocation
+{
+
+	string m_URL;
+		long m_Line,
+		m_Column;
+
+public:
+
+	string GetURL() const;
+	long  GetLine() const;
+    long GetColumn() const;
+
+	void SetURL(const string& inURL);
+	void SetLine(long inLine);
+	void SetColumn(long inColumn);
+
+};
 
 struct Request {
 
@@ -182,6 +223,10 @@ public:
 	*/
 
 	void	AttachTab(const Tab& inTab, CallBackType inCB);
+
+	bool    AttachTabThread(const Tab& inTab, CallBackType inCB);
+
+	bool    SetBreakPoint(const Tab& inTab, const SourceLocation& sourceLocation,CallBackType inCB);
 
 	//from INetworkDelegate
 

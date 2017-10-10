@@ -39,7 +39,8 @@ class Tab{
     string m_tabActor;
 	string m_consoleActor;
 	mutable	string m_ThreadActor;
-	
+	mutable string m_PauseActor;
+
 	friend class FireFoxDriver;
 
 	
@@ -63,11 +64,23 @@ class Tab{
     string GetActor() const;
 	string GetConsoleActor() const;
 	string GetThreadActor() const;
+	string GetPauseActor() const;
 
 	eThreadState GetTabThreadState() const;
 private:
 	mutable eThreadState  m_TabThreadState;
 };
+
+
+class Source
+{
+public:
+	string m_sourceActor;
+	string m_url;
+	
+};
+
+
 
 class SourceLocation
 {
@@ -226,7 +239,13 @@ public:
 
 	bool    AttachTabThread(const Tab& inTab, CallBackType inCB);
 
+	bool	ResumeThread(const Tab& inTab, CallBackType inCB);
+
 	bool    SetBreakPoint(const Tab& inTab, const SourceLocation& sourceLocation,CallBackType inCB);
+
+	void	GetSourceOfTab(const Tab& inTab, function<void(const vector<Source>&)>&& inCB);
+
+	void	GetSourceCode(const Source& inSource, function<void(const string&)>&& inCB);
 
 	//from INetworkDelegate
 

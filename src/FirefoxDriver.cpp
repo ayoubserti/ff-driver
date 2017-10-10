@@ -237,6 +237,24 @@ bool    FireFoxDriver::AttachTabThread(const Tab& inTab, function<void(const JSO
 		auto interceptor = [&inTab, inCB](const JSONPacket& packet) {
 			
 			inTab.m_TabThreadState = Tab::ePaused;
+			rapidjson::Document document;
+			if (document.Parse(packet.GetMsg()).HasParseError())
+			{
+				std::cerr << "Error while Parsing recieved JSON:  " << document.GetParseError() << std::endl;
+				
+				return;
+			}
+			else
+			{
+				auto obj = document.GetObject();
+				if (obj.HasMember("type") && obj.HasMember("why"))
+				{
+					if (string(obj["type"].GetString()) == "paused" && obj.HasMember("actor"))
+					{
+						inTab.m_PauseActor = obj["actor"].GetString();
+					}
+				}
+			}
 			inCB(packet);
 		};
 
@@ -250,13 +268,41 @@ bool    FireFoxDriver::AttachTabThread(const Tab& inTab, function<void(const JSO
 }
 
 
+bool FireFoxDriver::ResumeThread(const Tab & inTab, CallBackType inCB)
+{
+	if (inTab.GetTabThreadState() != Tab::ePaused)
+	{
+		return false;
+	}
+	else
+	{
+		string msg = "{\"to\":\":actor\", \"type\": \"resume\"}";
+		string actor = inTab.GetThreadActor();
+		msg = std::regex_replace(msg, regex(":actor"), actor);
+		JSONPacket request(msg);
+
+		auto interceptor = [&inTab, inCB](const JSONPacket& packet) {
+
+			inTab.m_TabThreadState = Tab::eRunning;
+			inCB(packet);
+		};
+
+		shared_ptr<Request> req(new Request(actor, request, std::move(interceptor)));
+
+		m_pendingRequests.push_back(req);
+		_prepareToSend(actor);
+
+		return true;
+	}
+}
+
 bool FireFoxDriver::SetBreakPoint(const Tab & inTab, const SourceLocation & sourceLocation, CallBackType inCB)
 {
-	if((inTab.GetTabThreadState() != Tab::ePaused) && (inTab.GetTabThreadState() != Tab::eRunning))
+	if(inTab.GetTabThreadState() != Tab::ePaused) 
 	   return false;
 
-	string msg = "{\"to\": \":actor\", \"type\": \"setBreakpoint\" , \"location\" : {\"url\":\":urlplace\", \"line\": :lineplace , \"column\" : :columnplace}}";
-	string actor = inTab.GetThreadActor();
+	string msg = "{\"to\": \":actor\", \"type\": \"setBreakpoint\" , \"location\" : {\"url\":\":urlplace\", \"line\": :lineplace, \"column\": :columnplace}}";
+	string actor = inTab.GetPauseActor();
 	msg = std::regex_replace(msg, regex(":actor"), actor);
 	msg = regex_replace(msg, regex(":urlplace"), sourceLocation.GetURL());
 	msg = regex_replace(msg, regex(":lineplace"), std::to_string(sourceLocation.GetLine()));
@@ -269,6 +315,102 @@ bool FireFoxDriver::SetBreakPoint(const Tab & inTab, const SourceLocation & sour
 	_prepareToSend(actor);
 
 	return true;
+
+}
+void FireFoxDriver::GetSourceOfTab(const Tab & inTab, function<void(const vector<Source>&)>&& inCB)
+{
+	string msg = "{\"to\": \":actor\", \"type\": \"sources\"}";
+	string actor = inTab.GetThreadActor();
+	msg = std::regex_replace(msg, regex(":actor"), actor);
+	JSONPacket request(msg);
+
+	auto interceptor = [&inTab, inCB](const JSONPacket& packet)
+	{
+		rapidjson::Document document;
+		if (document.Parse(packet.GetMsg()).HasParseError())
+		{
+			std::cerr << "Error while Parsing recieved JSON:  " << document.GetParseError() << std::endl;
+
+			return;
+		}
+		else
+		{
+			auto obj = document.GetObject();
+			if (obj.HasMember("from") && obj.HasMember("sources"))
+			{
+				if (string(obj["from"].GetString()) == inTab.GetThreadActor() )
+				{
+					auto srcArray = obj["sources"].GetArray();
+					
+					vector<Source> sources;
+					for (auto it = srcArray.begin(), end = srcArray.end(); it != end; ++it)
+					{
+						Source src; 
+						auto itObj = it->GetObject();
+						src.m_sourceActor = itObj["actor"].GetString();
+						if (itObj.HasMember("url") && itObj["url"].IsString())
+							src.m_url = itObj["url"].GetString();
+						sources.push_back(src);
+					}
+					//Source src; src.m_sourceActor= 
+					inCB(sources);
+
+				}
+			}
+		}
+	};
+
+	shared_ptr<Request> req(new Request(actor, request, std::move(interceptor)));
+
+	m_pendingRequests.push_back(req);
+	_prepareToSend(actor);
+
+}
+void FireFoxDriver::GetSourceCode(const Source & inSource, function<void(const string&)>&& inCB)
+{
+
+	string msg = "{\"to\": \":actor\", \"type\": \"source\"}";
+	string actor = inSource.m_sourceActor;
+	msg = std::regex_replace(msg, regex(":actor"), actor);
+	JSONPacket request(msg);
+
+	auto interceptor = [=](const JSONPacket& packet)
+	{
+		rapidjson::Document document;
+		if (document.Parse(packet.GetMsg()).HasParseError())
+		{
+			std::cerr << "Error while Parsing recieved JSON:  " << document.GetParseError() << std::endl;
+
+			return;
+		}
+		else
+		{
+			auto obj = document.GetObject();
+			if (obj.HasMember("from") && obj.HasMember("source"))
+			{
+				if (string(obj["from"].GetString()) == inSource.m_sourceActor)
+				{
+					//check if source is an object
+					if (obj["source"].IsObject())
+					{
+						//large source, get only initial
+						inCB(obj["source"].GetObject()["initial"].GetString());
+					}
+					else
+					{
+						inCB(obj["source"].GetString());
+					}
+					
+
+				}
+			}
+		}
+	};
+
+	shared_ptr<Request> req(new Request(actor, request, std::move(interceptor)));
+
+	m_pendingRequests.push_back(req);
+	_prepareToSend(actor);
 
 }
 asio::io_context & FireFoxDriver::GetIOService()
@@ -393,6 +535,11 @@ string Tab::GetConsoleActor() const
 string Tab::GetThreadActor() const
 {
 	return m_ThreadActor;
+}
+
+string Tab::GetPauseActor() const
+{
+	return m_PauseActor;
 }
 
 Tab::eThreadState Tab::GetTabThreadState() const

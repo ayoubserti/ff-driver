@@ -101,6 +101,22 @@ public:
 
 };
 
+class Breakpoint
+{
+public:
+	string m_actor;
+	enum Status
+	{
+		eEnabled,
+		eDisabled
+	};
+
+	Status m_status;
+
+	Breakpoint();
+
+};
+
 struct Request {
 
 private:
@@ -246,6 +262,8 @@ public:
 	void	GetSourceOfTab(const Tab& inTab, function<void(const vector<Source>&)>&& inCB);
 
 	void	GetSourceCode(const Source& inSource, function<void(const string&)>&& inCB);
+
+	bool    SetBreakpoint(const Tab& inTab, const Source& inSource, long inLine, long inColumn, function<void(Breakpoint)>&& inCB);
 
 	//from INetworkDelegate
 

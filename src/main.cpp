@@ -64,19 +64,60 @@ class DemoHandler
 	void OnThreadAttach(const JSONPacket& packet)
 	{
 		//m_driver->Stop();
+		/*rapidjson::Document document;
+		if (document.Parse(packet.GetMsg()).HasParseError())
+		{
+			std::cerr << "Error while Parsing recieved JSON:  " << document.GetParseError() << std::endl;
+			m_driver->Stop();
+			return;
+		}
+		else
+		{
+			auto obj = document.GetObject();
+			if (obj.HasMember("type") && obj.HasMember("why"))
+			{
+				if (string(obj["type"].GetString()) == "paused") 
+				{
+					SourceLocation srcLoc;
+					srcLoc.SetURL("index.js");
+					srcLoc.SetColumn(1);
+					srcLoc.SetLine(3);
+					m_driver->SetBreakPoint(m_tab, srcLoc, [](const JSONPacket& packet) {
+
+						cout << packet.GetMsg() << endl;
+					});
+				}
+			}
+		}*/
+		m_driver->GetSourceOfTab(m_tab, [this](const vector<Source>& sources) {
+
+			for (auto& it : sources)
+			{
+				//m_driver->GetSourceCode(it, [](const string& s) { cout << s << endl; });
+				m_driver->SetBreakpoint(m_tab, it, 7, 1, [](Breakpoint bp) {
+					cout << bp.m_actor << endl;
+				});
+			}
+		});
+		//m_driver->ResumeThread(m_tab, std::bind(&DemoHandler::OnThreadResumed, this, placeholders::_1));
+		
+	}
+
+	void OnThreadResumed(const JSONPacket& packet)
+	{
 		if (!m_threadAttached)
 		{
 			m_threadAttached = true;
 			SourceLocation srcLoc;
-			srcLoc.SetURL("assets/js/gt-ie9-011f8dbfa9.js");
-			srcLoc.SetColumn(50);
-			srcLoc.SetLine(1);
+			srcLoc.SetURL("index.js");
+			srcLoc.SetColumn(1);
+			srcLoc.SetLine(3);
 			m_driver->SetBreakPoint(m_tab, srcLoc, [](const JSONPacket& packet) {
 
 				cout << packet.GetMsg() << endl;
 			});
 		}
-		
+
 		cout << packet.GetMsg() << endl;
 	}
 
@@ -150,7 +191,7 @@ int main(int argc, char** argv)
 	if (demo)
 	{
 		//demo option
-		FireFoxDriver ffDriver("-url http://wikipedia.com");
+		FireFoxDriver ffDriver("-url file:///d:/work/ff-driver/resources/index.html");
 		/*Tab tab;
 		ffDriver.OnConnect([&]() {
 			

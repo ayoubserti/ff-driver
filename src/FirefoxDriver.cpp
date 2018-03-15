@@ -22,7 +22,7 @@ FireFoxDriver::FireFoxDriver(const string& optArgs ) :
 	,m_asyncEndpoint(*this,"127.0.0.1",6000)
 {	
 	m_asyncEndpoint.Start();
-	m_status = eWaitingHandShake;
+	m_status = eStop;
 }
 void FireFoxDriver::GetTabList(function<void(const vector<Tab>&)>&& inCB)
 {
@@ -413,6 +413,51 @@ void FireFoxDriver::GetSourceCode(const Source & inSource, function<void(const s
 	_prepareToSend(actor);
 
 }
+bool FireFoxDriver::SetBreakpoint(const Tab& inTab, const Source & inSource, long inLine, long inColumn, function<void(Breakpoint)>&& inCB)
+{
+	if(inTab.GetTabThreadState() != Tab::ePaused)
+		return false;
+	else
+	{
+		string msg = "{\"to\": \":actor\", \"type\": \"setBreakpoint\" , \"location\" : { \"line\": :lineplace , \"column\": :columnplace }}";
+		string actor = inSource.m_sourceActor;
+		msg = std::regex_replace(msg, regex(":actor"), actor);
+		msg = regex_replace(msg, regex(":lineplace"), std::to_string(inLine));
+		msg = regex_replace(msg, regex(":columnplace"), std::to_string(inColumn));
+		JSONPacket request(msg);
+
+		auto interceptor = [=](const JSONPacket& packet)
+		{
+			rapidjson::Document document;
+			if (document.Parse(packet.GetMsg()).HasParseError())
+			{
+				std::cerr << "Error while Parsing recieved JSON:  " << document.GetParseError() << std::endl;
+
+				return;
+			}
+			else
+			{
+				auto obj = document.GetObject();
+				if (obj.HasMember("from") && obj.HasMember("actor"))
+				{
+					if (string(obj["from"].GetString()) == inSource.m_sourceActor)
+					{
+						Breakpoint bkpoint;
+						bkpoint.m_actor = obj["actor"].GetString();
+						inCB(bkpoint);
+					}
+				}
+			}
+		};
+
+		shared_ptr<Request> req(new Request(actor, request, std::move(interceptor)));
+
+		m_pendingRequests.push_back(req);
+		_prepareToSend(actor);
+
+		return true;
+	}
+}
 asio::io_context & FireFoxDriver::GetIOService()
 {
 	return m_ioservice;
@@ -492,8 +537,12 @@ void FireFoxDriver::_prepareToSend(const string& actor)
 
 void FireFoxDriver::Run()
 {
-	
-	m_ioservice.run();
+	if (m_status == eStop)
+	{
+		m_status = eWaitingHandShake;
+		m_ioservice.run();
+	}
+		
 }
 
 void FireFoxDriver::OnConnect(function<void(void)>&& inCB)
@@ -505,6 +554,8 @@ void FireFoxDriver::OnConnect(function<void(void)>&& inCB)
 void FireFoxDriver::Stop()
 {
 	m_ioservice.stop();
+
+	m_status = eStop;
 }
 
 Tab::Tab()
@@ -602,4 +653,9 @@ void SourceLocation::SetLine(long inLine)
 void SourceLocation::SetColumn(long inColumn)
 {
 	m_Column = inColumn;
+}
+
+Breakpoint::Breakpoint():
+	m_status(Breakpoint::eEnabled)
+{
 }
